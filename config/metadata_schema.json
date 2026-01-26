@@ -1,0 +1,19 @@
+{
+  "fields": [
+    {
+      "name": "report_number",
+      "description": "报告编号",
+      "required": true,
+      "filename_patterns": [
+        "^ERP-(\\d{4}-\\d{3})"
+      ]
+    },
+    {
+      "name": "issue_date",
+      "description": "发布日期",
+      "required": true,
+      "default": "current_date",
+      "date_format": "YYYY-MM-DD"
+    }
+  ]
+}

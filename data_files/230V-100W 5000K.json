@@ -1,0 +1,122 @@
+{
+  "metadata": {
+    "status": "completed",
+    "extraction_start": "2026-01-25T23:55:51",
+    "completion_at": "2026-01-25T23:56:10"
+  },
+  "targets": [
+    {
+      "name": "photometric_data",
+      "description": "光度测量数据表格,包括电流、功率、功率因数、总光通量、光效、色温、显色指数,R9,X,Y,SDCM等",
+      "type": "table",
+      "value": {
+        "source_id": "TDS.xlsx|100W-5000K",
+        "start_row": 7,
+        "mapping": [
+          {
+            "name": "Current",
+            "mapColumn": "Measured current (A)"
+          },
+          {
+            "name": "Power",
+            "mapColumn": "Measured Pon(W)"
+          },
+          {
+            "name": "PF",
+            "mapColumn": "Displacement factor(DF)"
+          },
+          {
+            "name": "Total Luminous Flux",
+            "mapColumn": "Initial  Φuse (lm)"
+          },
+          {
+            "name": "Efficacy",
+            "mapColumn": "Efficancy"
+          },
+          {
+            "name": "CCT",
+            "mapColumn": "CCT"
+          },
+          {
+            "name": "Ra",
+            "mapColumn": "Colour rendering (CRI)"
+          },
+          {
+            "name": "R9",
+            "mapColumn": "R9"
+          },
+          {
+            "name": "X",
+            "mapColumn": "x"
+          },
+          {
+            "name": "Y",
+            "mapColumn": "y"
+          },
+          {
+            "name": "SDCM",
+            "mapColumn": "Colour consistency"
+          },
+          {
+            "name": "Flicker Pst LM",
+            "mapColumn": "Flicker(Pst LM)"
+          },
+          {
+            "name": "Stroboscopic Effect SVM",
+            "mapColumn": "Stroboscopic effect(SVM)"
+          },
+          {
+            "name": "Standby Power Psb",
+            "mapColumn": "Psb"
+          }
+        ]
+      },
+      "confidence": 0.9
+    },
+    {
+      "name": "images",
+      "description": "相关图片",
+      "type": "images",
+      "value": [
+        "./1.jpg",
+        "./2.jpg"
+      ],
+      "confidence": 0.95
+    },
+    {
+      "name": "product_name",
+      "description": "产品名称",
+      "type": "str",
+      "value": "Highbay module",
+      "confidence": 0.95
+    },
+    {
+      "name": "model_identifier",
+      "description": "产品型号",
+      "type": "str",
+      "value": "230V-100W 5000K",
+      "confidence": 0.95
+    },
+    {
+      "name": "rated_wattage",
+      "description": "额定功率",
+      "type": "str",
+      "value": "100W",
+      "confidence": 0.95
+    },
+    {
+      "name": "rated_voltage",
+      "description": "额定电压",
+      "type": "str",
+      "value": "230V~",
+      "confidence": 0.95
+    },
+    {
+      "name": "cct",
+      "description": "色温",
+      "type": "str",
+      "value": "5000K",
+      "confidence": 0.95
+    }
+  ]
+}
