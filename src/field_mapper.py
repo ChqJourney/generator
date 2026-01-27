@@ -85,7 +85,9 @@ def generate_operations(config: Dict, metadata: Dict, extracted_data: Dict) -> D
                 'type': 'table',
                 'placeholder': placeholder,
                 'table_template_path': mapping['table_template_path'],
-                'table_data': table_data
+                'table_data': table_data,
+                'offset_x': mapping.get('offset_x', 0),
+                'offset_y': mapping.get('offset_y', 0)
             })
     
     return {'operations': operations}

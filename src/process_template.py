@@ -4,6 +4,7 @@
 import sys
 import json
 from pathlib import Path
+from docx.shared import Inches
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
 
@@ -50,11 +51,22 @@ def main():
                 op_count += 1
             
             elif op['type'] == 'image':
+                width = op.get('width')
+                height = op.get('height')
+                
+                if width is not None:
+                    if isinstance(width, (int, float)):
+                        width = Inches(width)
+                
+                if height is not None:
+                    if isinstance(height, (int, float)):
+                        height = Inches(height)
+                
                 processor.add_image(
                     op['placeholder'],
                     op['image_paths'],
-                    op.get('width'),
-                    op.get('height'),
+                    width,
+                    height,
                     op.get('alignment'),
                     op.get('location', 'body')
                 )
@@ -64,7 +76,9 @@ def main():
                 processor.add_table(
                     op['placeholder'],
                     op['table_template_path'],
-                    op.get('table_data')
+                    op.get('table_data'),
+                    op.get('offset_x', 0),
+                    op.get('offset_y', 0)
                 )
                 op_count += 1
         

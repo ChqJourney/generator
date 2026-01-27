@@ -32,9 +32,9 @@ class PlaceholderFinder:
 
     @staticmethod
     def _search_paragraphs_in_container(container, placeholder):
-        for i, paragraph in enumerate(container.paragraphs):
+        for idx, paragraph in enumerate(container.paragraphs):
             if placeholder in paragraph.text:
-                yield i, paragraph
+                yield idx, paragraph
         for result in PlaceholderFinder._iterate_container(container):
             if isinstance(result, tuple) and len(result) == 2:
                 idx, paragraph = result
@@ -176,7 +176,7 @@ class TextInserter(ContentInserter):
         return False
 
 class TableInserter(ContentInserter):
-    def insert(self, placeholder: str, table_template_path: str, table_data: Optional[List[List[str]]] = None, location: str = 'body'):
+    def insert(self, placeholder: str, table_template_path: str, table_data: Optional[List[List[str]]] = None, offset_x: int = 0, offset_y: int = 0, location: str = 'body'):
         self.validate_location(location, ['body'])
         
         if not os.path.exists(table_template_path):
@@ -193,12 +193,22 @@ class TableInserter(ContentInserter):
             data_cols = max(len(row) for row in table_data) if table_data else 0
             
             for row_idx, row in enumerate(template_table.rows):
-                if row_idx >= data_rows:
+                if row_idx < offset_y:
+                    continue
+                
+                data_row_idx = row_idx - offset_y
+                if data_row_idx >= data_rows:
                     break
+                
                 for cell_idx, cell in enumerate(row.cells):
-                    if cell_idx >= len(table_data[row_idx]):
+                    if cell_idx < offset_x:
+                        continue
+                    
+                    data_cell_idx = cell_idx - offset_x
+                    if data_cell_idx >= len(table_data[data_row_idx]):
                         break
-                    cell_value = table_data[row_idx][cell_idx]
+                    
+                    cell_value = table_data[data_row_idx][data_cell_idx]
                     if cell_value and str(cell_value).strip():
                         for paragraph in cell.paragraphs:
                             for run in paragraph.runs:
@@ -218,6 +228,8 @@ class TableInserter(ContentInserter):
         
         for idx, paragraph in results:
             try:
+                if paragraph._element.getparent() is None:
+                    continue
                 PlaceholderFinder.replace_paragraph_with_element(paragraph, template_table._element)
             except (AttributeError, ValueError, TypeError) as e:
                 raise DocxTemplateError(f"Failed to replace placeholder '{placeholder}': {str(e)}")
@@ -273,6 +285,8 @@ class ImageInserter(ContentInserter):
         
         for idx, paragraph in results:
             try:
+                if paragraph._element.getparent() is None:
+                    continue
                 parent_element = self._get_parent_element(paragraph)
                 self._replace_placeholder_with_images(paragraph, create_image_paragraphs, parent_element)
             except (AttributeError, ValueError, TypeError) as e:
@@ -348,12 +362,15 @@ class DocxTemplateProcessor:
         return self
     
     def add_table(self, placeholder: str, table_template_path: str, 
-                  table_data: Optional[List[List[str]]] = None):
+                  table_data: Optional[List[List[str]]] = None,
+                  offset_x: int = 0, offset_y: int = 0):
         self.operations.append({
             'type': 'table',
             'placeholder': placeholder,
             'table_template_path': table_template_path,
-            'table_data': table_data
+            'table_data': table_data,
+            'offset_x': offset_x,
+            'offset_y': offset_y
         })
         return self
     
@@ -430,7 +447,10 @@ class DocxTemplateProcessor:
                 elif op['type'] == 'table':
                     inserter = TableInserter(self.doc)
                     inserter.insert(op['placeholder'], op['table_template_path'], 
-                                  op['table_data'], 'body')
+                                  op['table_data'], 
+                                  int(op.get('offset_x', 0)), 
+                                  int(op.get('offset_y', 0)), 
+                                  'body')
                 
                 elif op['type'] == 'image':
                     inserter = ImageInserter(self.doc)

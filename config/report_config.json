@@ -1,5 +1,5 @@
 {
-  "template_path": "report_templates/erp_report_template.docx",
+  "template_path": "report_templates/report_template1.docx",
   "output_dir": "output/",
   "field_mappings": [
     {
@@ -32,22 +32,26 @@
       "source_field": "photometric_data",
       "type": "table",
       "headers": [
-        {"name":"Current","type":"copy","digit":4},
-        {"name":"Power","type":"copy","digit":2},
-        {"name":"PF","type":"copy","digit":4},
-        {"name":"Total Luminous Flux","type":"copy","digit":1},
-        {"name":"Efficacy","type":"calculate","formula":"=B{row}/A{row}*1000"},
-        {"name":"CCT","type":"copy","digit":0},
-        {"name":"Ra","type":"copy","digit":0},
-        {"name":"R9","type":"copy","digit":0},
-        {"name":"X","type":"copy","digit":4},
-        {"name":"Y","type":"copy","digit":4},
-        {"name":"SDCM","type":"copy","digit":0},
-        {"name":"Flicker Pst LM","type":"copy","digit":4},
-        {"name":"Stroboscopic Effect SVM","type":"copy","digit":4},
-        {"name":"Standby Power Psb","type":"copy","digit":2}
+        { "name": "Current", "type": "copy", "digit": 4 },
+        { "name": "Power", "type": "copy", "digit": 2 },
+        { "name": "PF", "type": "copy", "digit": 4 },
+        { "name": "Total Luminous Flux", "type": "copy", "digit": 1 },
+        {
+          "name": "Efficacy",
+          "type": "calculate",
+          "formula": "=B{row}/A{row}*1000"
+        },
+        { "name": "CCT", "type": "copy", "digit": 0 },
+        { "name": "Ra", "type": "copy", "digit": 0 },
+        { "name": "R9", "type": "copy", "digit": 0 },
+        { "name": "X", "type": "copy", "digit": 4 },
+        { "name": "Y", "type": "copy", "digit": 4 },
+        { "name": "SDCM", "type": "copy", "digit": 0 },
+        { "name": "Flicker Pst LM", "type": "copy", "digit": 4 },
+        { "name": "Stroboscopic Effect SVM", "type": "copy", "digit": 4 },
+        { "name": "Standby Power Psb", "type": "copy", "digit": 2 }
       ],
-      "table_template_path": "templates/photometric_table_template.docx",
+      "table_template_path": "report_templates/tables/photometric_table_template.docx",
       "offset_x": 3,
       "offset_y": 3
     },
