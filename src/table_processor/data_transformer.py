@@ -13,7 +13,8 @@ class TableDataTransformer:
     def transform(self, 
                   data: List[List[Any]], 
                   transformations: List[Dict],
-                  metadata: Optional[Dict] = None) -> List[List[Any]]:
+                  metadata: Optional[Dict] = None,
+                  targets_data: Optional[Dict] = None) -> List[List[Any]]:
         """
         对原始数据进行转换
         
@@ -26,14 +27,13 @@ class TableDataTransformer:
             转换后的数据
         """
         result = [row[:] for row in data]
-        
         for transform in transformations:
             transform_type = transform.get('type')
             
             if transform_type == 'skip_columns':
                 result = self._apply_skip_columns(result, transform)
             elif transform_type == 'add_column':
-                result = self._apply_add_column(result, transform, metadata)
+                result = self._apply_add_column(result, transform, metadata, targets_data)
             elif transform_type == 'calculate':
                 result = self._apply_calculate(result, transform)
             elif transform_type == 'format_column':
@@ -67,7 +67,7 @@ class TableDataTransformer:
         
         return result
     
-    def _apply_add_column(self, data: List[List[Any]], config: Dict, metadata: Dict) -> List[List[Any]]:
+    def _apply_add_column(self, data: List[List[Any]], config: Dict, metadata: Dict, targets_data: Optional[Dict] = None) -> List[List[Any]]:
         """
         添加列
         
@@ -80,24 +80,51 @@ class TableDataTransformer:
         """
         position = config.get('position', 0)
         source = config.get('source', '')
-        
+        print(f"metadata in add_column: {metadata}")
         result = []
         for row_idx, row in enumerate(data):
             if source == 'row_index':
                 value = str(row_idx + 1)
             elif source.startswith('metadata:'):
                 key = source.split(':', 1)[1]
-                value = str(metadata.get(key, '')) if metadata else ''
+                if metadata is None or "fields" not in metadata:
+                    value = ''
+                else:
+                    value=''
+                    # print(f"Looking for metadata key: {key}")
+                    fields=metadata["fields"]
+                    # print(f"Metadata fields: {fields}")
+                    for field in fields:
+                        # print(f"Checking field: {field} for {key}")
+                        if field.get("name")==key:
+                            # print(f"Found metadata field for key: {key}")
+                            value=field.get("value","")
+                            # print(f"Adding column at position {position} with value: {value}")
+                            break
+                    
+            elif source.startswith('targets:'):
+                key = source.split(':', 1)[1]
+                if targets_data is None or "targets" not in targets_data:
+                    value = ''
+                else:
+                    value = ''
+                    targets=targets_data["targets"]
+                    for target in targets:
+                        if target.get("name")==key:
+                            value=target.get("value","")
+                            break
             elif source.startswith('value:'):
                 value = source.split(':', 1)[1]
             else:
                 value = ''
-            
+            print(f"Adding column at position {position} with value: {value}")
             new_row = row.copy()
-            if position >= len(new_row):
+            if position >= len(new_row) and row_idx == 0:
                 new_row.append(value)
-            else:
+            elif row_idx == 0 and value != '':
                 new_row.insert(position, value)
+            else:
+                new_row.insert(position, '')
             result.append(new_row)
         
         return result
@@ -125,7 +152,7 @@ class TableDataTransformer:
         column = config.get('column')
         operation = config.get('operation', '')
         decimal = config.get('decimal', None)
-        
+        print(f"Calculating column {column} with operation {operation} and decimal {decimal}")
         result = [row[:] for row in data]
         
         if operation == 'average':
@@ -153,12 +180,16 @@ class TableDataTransformer:
                 result[-1][column] = self._format_number(min_value, decimal)
         
         elif operation.startswith('formula='):
+            print(f"Applying formula calculation on column {column} with operation {operation}")
             formula = operation.split('=', 1)[1]
             for row_idx, row in enumerate(result):
                 try:
                     formula_exp = formula.replace('{row}', str(row_idx))
+                    print(f"Evaluating formula for row {row_idx}: {formula_exp}")
                     formula_exp = self._parse_column_references(formula_exp, row_idx, row)
+                    
                     evaluated_value = eval(formula_exp)
+                    print(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
                     row[column] = self._format_number(evaluated_value, decimal)
                 except:
                     pass
@@ -222,6 +253,7 @@ class TableDataTransformer:
             if column < len(row) and self._is_numeric(row[column]):
                 value = float(row[column])
                 row[column] = f"{value:.{decimal}f}"
+                print(f"Formatted value at column {column}: {row[column]} at decimal {decimal}")
         return result
     
     def _apply_reorder(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:

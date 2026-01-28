@@ -14,6 +14,10 @@
         "start_row": 7,
         "mapping": [
           {
+            "name": "sequence_no",
+            "mapColumn": "No."
+          },
+          {
             "name": "Current",
             "mapColumn": "Measured current (A)"
           },

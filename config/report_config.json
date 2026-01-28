@@ -30,30 +30,108 @@
       "template_field": "photometric_data",
       "source": "extracted_data",
       "source_field": "photometric_data",
+      "table_template_path": "report_templates/photometric_table_template.docx",
       "type": "table",
-      "headers": [
-        { "name": "Current", "type": "copy", "digit": 4 },
-        { "name": "Power", "type": "copy", "digit": 2 },
-        { "name": "PF", "type": "copy", "digit": 4 },
-        { "name": "Total Luminous Flux", "type": "copy", "digit": 1 },
+      "row_strategy": "fixed_rows",
+      "header_rows": 2,
+      "target_headers": [
+        "model_identifier",
+      "sequence_no",
+      "Current",
+      "Power",
+      "PF",
+      "Total Luminous Flux",
+      "Efficacy",
+      "CCT",
+      "Ra",
+      "R9",
+      "X",
+      "Y",
+      "SDCM",
+      "Flicker Pst LM",
+      "Stroboscopic Effect SVM",
+      "Standby Power Psb"
+    ],
+      "transformations": [
         {
-          "name": "Efficacy",
-          "type": "calculate",
-          "formula": "=B{row}/A{row}*1000"
+          "type": "add_column",
+          "position": 0,
+          "source": "metadata:model_identifier"
         },
-        { "name": "CCT", "type": "copy", "digit": 0 },
-        { "name": "Ra", "type": "copy", "digit": 0 },
-        { "name": "R9", "type": "copy", "digit": 0 },
-        { "name": "X", "type": "copy", "digit": 4 },
-        { "name": "Y", "type": "copy", "digit": 4 },
-        { "name": "SDCM", "type": "copy", "digit": 0 },
-        { "name": "Flicker Pst LM", "type": "copy", "digit": 4 },
-        { "name": "Stroboscopic Effect SVM", "type": "copy", "digit": 4 },
-        { "name": "Standby Power Psb", "type": "copy", "digit": 2 }
-      ],
-      "table_template_path": "report_templates/tables/photometric_table_template.docx",
-      "offset_x": 3,
-      "offset_y": 3
+        {
+          "type": "calculate",
+          "column": 1,
+          "operation": "average",
+          "decimal": 2
+        },
+        {
+          "type": "calculate",
+          "column": 2,
+          "operation": "average",
+          "decimal": 4
+        },
+        {
+          "type": "calculate",
+          "column": 3,
+          "operation": "average",
+          "decimal": 4
+        },
+        {
+          "type": "calculate",
+          "column": 4,
+          "operation": "average",
+          "decimal": 1
+        },
+        {
+          "type": "calculate",
+          "column": 5,
+          "operation": "formula=E{row}/C{row}",
+          "decimal": 2
+        },
+        
+        {
+          "type": "calculate",
+          "column": 6,
+          "operation": "average",
+          "decimal": 0
+        },
+        {
+          "type": "calculate",
+          "column": 7,
+          "operation": "average",
+          "decimal": 0
+        },
+        {
+          "type": "calculate",
+          "column": 8,
+          "operation": "average",
+          "decimal": 0
+        },
+        {
+          "type": "calculate",
+          "column": 9,
+          "operation": "average",
+          "decimal": 4
+        },
+        {
+          "type": "calculate",
+          "column": 10,
+          "operation": "average",
+          "decimal": 4
+        },
+        {
+          "type": "calculate",
+          "column": 11,
+          "operation": "average",
+          "decimal": 4
+        },
+        {
+          "type": "calculate",
+          "column": 12,
+          "operation": "average",
+          "decimal": 2
+        }
+      ]
     },
     {
       "template_field": "images",

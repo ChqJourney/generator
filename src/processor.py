@@ -7,6 +7,7 @@ import os
 from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from table_processor import EnhancedTableInserter, TableDataTransformer
 
 class DocxTemplateError(Exception):
     pass
@@ -36,13 +37,12 @@ class PlaceholderFinder:
         for i, paragraph in enumerate(container.paragraphs):
             if placeholder in paragraph.text:
                 yield i, paragraph
-        for result in PlaceholderFinder._iterate_container(container):
-            if isinstance(result, tuple) and len(result) == 2:
-                idx, paragraph = result
-            else:
-                idx, paragraph = None, result
-            if placeholder in paragraph.text:
-                yield idx, paragraph
+        for table_idx, table in enumerate(container.tables):
+            for row_idx, row in enumerate(table.rows):
+                for cell_idx, cell in enumerate(row.cells):
+                    for p_idx, paragraph in enumerate(cell.paragraphs):
+                        if placeholder in paragraph.text:
+                            yield (table_idx, row_idx, cell_idx, p_idx), paragraph
 
     @staticmethod
     def find_all_placeholders_in_location(doc: Document, placeholder: str, location: str = 'body') -> List[Tuple[Any, Any]]:
@@ -204,11 +204,26 @@ class TextInserter(ContentInserter):
         return False
 
 class TableInserter(ContentInserter):
-    def insert(self, placeholder: str, table_template_path: str, table_data: Optional[List[List[str]]] = None, location: str = 'body'):
+    def insert(self, placeholder: str, table_template_path: str, 
+               raw_data: Optional[List[List[str]]] = None,
+               transformations: Optional[List[Dict]] = None,
+               metadata: Optional[Dict] = None,
+                targets_data: Optional[Dict] = None,
+               row_strategy: str = 'fixed_rows',
+               skip_columns: Optional[List[int]] = None,
+               header_rows: int = 1,
+               location: str = 'body'):
         self.validate_location(location, ['body'])
         
         if not os.path.exists(table_template_path):
             raise DocxTemplateError(f"Table template file not found: {table_template_path}")
+        
+        transformer = TableDataTransformer()
+        
+        processed_data = raw_data
+        if raw_data and transformations:
+            processed_data = transformer.transform(raw_data, transformations, metadata, targets_data)
+            
         
         table_template = Document(table_template_path)
         if not table_template.tables:
@@ -216,33 +231,13 @@ class TableInserter(ContentInserter):
         
         template_table = table_template.tables[0]
         
-        if table_data:
-            data_rows = len(table_data)
-            data_cols = max(len(row) for row in table_data) if table_data else 0
-            
-            for row_idx, row in enumerate(template_table.rows):
-                if row_idx >= data_rows:
-                    break
-                for cell_idx, cell in enumerate(row.cells):
-                    if cell_idx >= len(table_data[row_idx]):
-                        break
-                    cell_value = table_data[row_idx][cell_idx]
-                    if cell_value and str(cell_value).strip():
-                        for paragraph in cell.paragraphs:
-                            for run in paragraph.runs:
-                                run.text = str(cell_value)
-                                break
-                            if not cell.paragraphs or not any(p.runs for p in cell.paragraphs):
-                                if cell.paragraphs:
-                                    cell.paragraphs[0].add_run(str(cell_value))
-                                else:
-                                    cell.add_paragraph(str(cell_value))
-                                if paragraph.runs:
-                                    break
+        if row_strategy == 'fixed_rows':
+            self._fill_fixed_rows(template_table, processed_data, skip_columns, header_rows)
+        elif row_strategy == 'dynamic_rows':
+            self._fill_dynamic_rows(template_table, processed_data, skip_columns, header_rows)
         
         results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
         
-        # 如果在指定位置找不到，尝试在body查找（表格通常在body中）
         if not results:
             print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在 body 中查找...")
             if location != 'body':
@@ -257,10 +252,8 @@ class TableInserter(ContentInserter):
         
         for idx, paragraph in results:
             try:
-                # 尝试标准替换
                 PlaceholderFinder.replace_paragraph_with_element(paragraph, template_table._element)
             except (AttributeError, ValueError, TypeError, DocxTemplateError) as e:
-                # 如果标准替换失败，尝试在单元格内插入
                 try:
                     print(f"尝试在单元格内插入表格 '{placeholder}'...")
                     self._insert_table_in_cell(paragraph, template_table)
@@ -269,54 +262,100 @@ class TableInserter(ContentInserter):
                     print(f"      尝试在单元格内插入也失败: {str(e2)}")
                     continue
     
+    def _fill_fixed_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int):
+        if not data:
+            return
+        
+        data_row_idx = 0
+        for row_idx, row in enumerate(table.rows):
+            if row_idx < header_rows:
+                continue
+            
+            if data_row_idx >= len(data):
+                break
+            
+            data_row = data[data_row_idx]
+            data_col_idx = 0
+            
+            for col_idx, cell in enumerate(row.cells):
+                if skip_columns and col_idx in skip_columns:
+                    continue
+                
+                if data_col_idx < len(data_row):
+                    value = data_row[data_col_idx]
+                    if value is None or value == '':
+                        pass
+                    else:
+                        self._set_cell_value(cell, str(value))
+                    data_col_idx += 1
+            
+            data_row_idx += 1
+    
+    def _fill_dynamic_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int):
+        if not data:
+            return
+        
+        while len(table.rows) > header_rows:
+            table._tbl.remove(table.rows[-1]._tr)
+        
+        num_columns = len(table.rows[0].cells) if table.rows else 0
+        
+        for data_row in data:
+            new_row = table.add_row()
+            
+            if len(new_row.cells) < num_columns:
+                for _ in range(num_columns - len(new_row.cells)):
+                    new_row.add_cell()
+            
+            data_col_idx = 0
+            for col_idx, cell in enumerate(new_row.cells):
+                if skip_columns and col_idx in skip_columns:
+                    continue
+                
+                if data_col_idx < len(data_row):
+                    value = data_row[data_col_idx]
+                    self._set_cell_value(cell, str(value) if value else '')
+                    data_col_idx += 1
+    
+    def _set_cell_value(self, cell: Any, value: str):
+        """设置单元格值"""
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.text = value
+                return          # 找到run并设置后直接返回
+        # 没有run则使用第一个paragraph
+        if cell.paragraphs:
+            cell.paragraphs[0].add_run(value)
+        else:
+            cell.add_paragraph(value)
+    
     def _insert_table_in_cell(self, paragraph, template_table):
-        """在表格单元格内插入表格"""
-        # 查找包含该段落的单元格
         cell = self._find_parent_cell(paragraph)
         if cell is None:
             raise DocxTemplateError("Cannot find parent cell for paragraph")
         
-        # 清除占位符所在段落的内容
         paragraph.clear()
-        
-        # 在单元格中添加表格
-        # 由于 python-docx 不直接支持在单元格中添加表格，我们需要手动操作 XML
-        from lxml import etree
-        
-        # 获取单元格的元素
         cell_element = cell._element
-        
-        # 复制模板表格的元素
         new_table_element = deepcopy(template_table._element)
-        
-        # 将表格元素插入到单元格中
-        # 找到段落在单元格中的位置
         p_element = paragraph._element
         p_index = list(cell_element).index(p_element)
-        
-        # 移除占位符段落
         cell_element.remove(p_element)
-        
-        # 在相同位置插入表格
         cell_element.insert(p_index, new_table_element)
-        
         print(f"成功在单元格内插入表格")
     
     def _find_parent_cell(self, paragraph):
-        """查找段落所在的表格单元格"""
         try:
             p_element = paragraph._element
             current = p_element.getparent()
             
-            # 向上查找，直到找到 tc (table cell) 元素
             while current is not None:
-                # tc 是表格单元格的 XML 标签
                 if current.tag.endswith('tc'):
-                    # 创建一个 Cell 对象包装这个元素
                     from docx.table import _Cell
                     return _Cell(current, None)
                 current = current.getparent()
             
+            return None
+        except Exception:
             return None
         except Exception:
             return None
@@ -492,12 +531,24 @@ class DocxTemplateProcessor:
         return self
     
     def add_table(self, placeholder: str, table_template_path: str, 
-                  table_data: Optional[List[List[str]]] = None):
+                  raw_data: Optional[List[List[str]]] = None,
+                  transformations: Optional[List[Dict]] = None,
+                  metadata: Optional[Dict] = None,
+                  targets_data: Optional[Dict] = None,
+                  row_strategy: str = 'fixed_rows',
+                  skip_columns: Optional[List[int]] = None,
+                  header_rows: int = 1):
         self.operations.append({
             'type': 'table',
             'placeholder': placeholder,
             'table_template_path': table_template_path,
-            'table_data': table_data
+            'raw_data': raw_data,
+            'transformations': transformations,
+            'metadata': metadata,
+            'targets_data': targets_data,
+            'row_strategy': row_strategy,
+            'skip_columns': skip_columns,
+            'header_rows': header_rows
         })
         return self
     
@@ -573,8 +624,18 @@ class DocxTemplateProcessor:
                 
                 elif op['type'] == 'table':
                     inserter = TableInserter(self.doc)
-                    inserter.insert(op['placeholder'], op['table_template_path'], 
-                                  op['table_data'], 'body')
+                    inserter.insert(
+                        op['placeholder'], 
+                        op['table_template_path'],
+                        op.get('raw_data'),
+                        op.get('transformations'),
+                        op.get('metadata'),
+                        op.get('targets_data'),
+                        op.get('row_strategy', 'fixed_rows'),
+                        op.get('skip_columns'),
+                        op.get('header_rows', 1),
+                        'body'
+                    )
                 
                 elif op['type'] == 'image':
                     inserter = ImageInserter(self.doc)
