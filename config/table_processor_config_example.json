@@ -1,0 +1,182 @@
+{
+  "table_config_example": {
+    "template_field": "photometric_data",
+    "type": "table",
+    
+    "table_template_path": "report_templates/tables/photometric_table_template.docx",
+    
+    "row_strategy": "fixed_rows",
+    
+    "skip_columns": [0, 1],
+    
+    "header_rows": 2,
+    
+    "transformations": [
+      {
+        "type": "skip_columns",
+        "columns": [0, 1]
+      },
+      {
+        "type": "calculate",
+        "column": 4,
+        "operation": "formula=Power{row}/Current{row}*1000",
+        "decimal": 4
+      },
+      {
+        "type": "format_column",
+        "column": 0,
+        "decimal": 4
+      },
+      {
+        "type": "format_column",
+        "column": 1,
+        "decimal": 2
+      },
+      {
+        "type": "format_column",
+        "column": 2,
+        "function": "lambda x: f'{x:.4f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 4,
+        "function": "lambda x: f'{x:.4f}' if x < 1 else f'{x:.2f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 5,
+        "function": "lambda x: f'{x:.1f}' if x < 10 else f'{x:.0f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 6,
+        "decimal": 0
+      },
+      {
+        "type": "format_column",
+        "column": 7,
+        "decimal": 0
+      },
+      {
+        "type": "format_column",
+        "column": 8,
+        "function": "lambda x: f'{x:.6f}' if abs(x) < 0.1 else f'{x:.4f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 9,
+        "function": "lambda x: f'{x:.6f}' if abs(x) < 0.1 else f'{x:.4f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 10,
+        "decimal": 0
+      },
+      {
+        "type": "format_column",
+        "column": 11,
+        "decimal": 4
+      },
+      {
+        "type": "format_column",
+        "column": 12,
+        "function": "lambda x: f'{x:.4f}' if abs(x) < 1 else f'{x:.2f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 13,
+        "function": "lambda x: f'{x:.4f}' if abs(x) < 1 else f'{x:.2f}'"
+      },
+      {
+        "type": "format_column",
+        "column": 14,
+        "decimal": 2
+      }
+    ]
+  },
+  
+  "transformation_examples": {
+    "skip_columns": {
+      "type": "skip_columns",
+      "columns": [0, 1]
+    },
+    
+    "add_column_with_row_index": {
+      "type": "add_column",
+      "position": 0,
+      "source": "row_index"
+    },
+    
+    "add_column_with_metadata": {
+      "type": "add_column",
+      "position": 0,
+      "source": "metadata:model_name"
+    },
+    
+    "add_column_with_fixed_value": {
+      "type": "add_column",
+      "position": 0,
+      "source": "value:MODEL-X"
+    },
+    
+    "calculate_average": {
+      "type": "calculate",
+      "column": 3,
+      "operation": "average",
+      "decimal": 1
+    },
+    
+    "calculate_sum": {
+      "type": "calculate",
+      "column": 2,
+      "operation": "sum",
+      "decimal": 2
+    },
+    
+    "calculate_formula": {
+      "type": "calculate",
+      "column": 4,
+      "operation": "formula=Power{row}/Current{row}*1000",
+      "decimal": 1
+    },
+    
+    "format_fixed_decimal": {
+      "type": "format_column",
+      "column": 1,
+      "decimal": 2
+    },
+    
+    "format_cct": {
+      "type": "format_column",
+      "column": 5,
+    },
+    
+    "format_efficiency": {
+      "type": "format_column",
+      "column": 4,
+      "function": "lambda x: f'{x:.4f}' if x < 1 else f'{x:.2f}'"
+    },
+    
+    "format_xy_coordinate": {
+      "type": "format_column",
+      "column": 8,
+      "function": "lambda x: f'{x:.6f}' if abs(x) < 0.1 else f'{x:.4f}'"
+    },
+    
+    "format_flicker": {
+      "type": "format_column",
+      "column": 11,
+      "function": "lambda x: f'{x:.4f}' if abs(x) < 1 else f'{x:.2f}'"
+    },
+    
+    "reorder_columns": {
+      "type": "reorder",
+      "order": [0, 4, 1, 2, 3, 5, 6, 7, 8, 9]
+    },
+    
+    "filter_empty_rows": {
+      "type": "filter_rows",
+      "condition": "remove_empty"
+    }
+  }
+}

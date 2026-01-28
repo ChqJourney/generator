@@ -6,6 +6,7 @@ import shutil
 import os
 from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
+from copy import deepcopy
 
 class DocxTemplateError(Exception):
     pass
@@ -32,9 +33,9 @@ class PlaceholderFinder:
 
     @staticmethod
     def _search_paragraphs_in_container(container, placeholder):
-        for idx, paragraph in enumerate(container.paragraphs):
+        for i, paragraph in enumerate(container.paragraphs):
             if placeholder in paragraph.text:
-                yield idx, paragraph
+                yield i, paragraph
         for result in PlaceholderFinder._iterate_container(container):
             if isinstance(result, tuple) and len(result) == 2:
                 idx, paragraph = result
@@ -70,12 +71,25 @@ class PlaceholderFinder:
         try:
             p_element = paragraph._element
             p_parent = p_element.getparent()
+            
             if p_parent is None:
                 raise DocxTemplateError("Cannot find parent element of paragraph")
             
-            index = list(p_parent).index(p_element)
+            # 获取父容器中的索引位置
+            try:
+                index = list(p_parent).index(p_element)
+            except ValueError:
+                # 如果在父容器中找不到，可能是因为paragraph在特殊容器中
+                raise DocxTemplateError(f"Paragraph not found in parent container")
+            
+            # 移除原段落
             p_parent.remove(p_element)
-            p_parent.insert(index, element)
+            
+            # 插入新元素
+            # 注意：对于表格元素，需要使用深拷贝以避免重复引用
+            new_element = deepcopy(element)
+            p_parent.insert(index, new_element)
+            
         except (AttributeError, ValueError) as e:
             raise DocxTemplateError(f"Failed to replace paragraph with element: {str(e)}")
 
@@ -123,9 +137,23 @@ class TextInserter(ContentInserter):
     def insert(self, placeholder: str, value: str, location: str = 'body'):
         self.validate_location(location, ['body', 'header', 'footer'])
         
+        # 如果没有指定location或者在指定location找不到，则在所有位置查找
         results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
+        
+        # 如果在指定位置找不到，尝试在所有位置查找
         if not results:
-            raise PlaceholderNotFoundError(placeholder, location)
+            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
+            for loc in ['header', 'body', 'footer']:
+                if loc != location:  # 跳过已经搜索过的位置
+                    results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
+                    if results:
+                        print(f"在 {loc} 中找到占位符 '{placeholder}'")
+                        location = loc  # 更新location
+                        break
+        
+        if not results:
+            print(f"警告: 占位符 '{placeholder}' 在所有位置都未找到，跳过此操作")
+            return
         
         replaced = False
         for idx, paragraph in results:
@@ -133,7 +161,7 @@ class TextInserter(ContentInserter):
                 replaced = True
         
         if not replaced:
-            raise PlaceholderNotFoundError(placeholder, location)
+            print(f"警告: 占位符 '{placeholder}' 未能成功替换，跳过此操作")
     
     def _iterate_placeholders(self, location):
         if location == 'body':
@@ -176,7 +204,7 @@ class TextInserter(ContentInserter):
         return False
 
 class TableInserter(ContentInserter):
-    def insert(self, placeholder: str, table_template_path: str, table_data: Optional[List[List[str]]] = None, offset_x: int = 0, offset_y: int = 0, location: str = 'body'):
+    def insert(self, placeholder: str, table_template_path: str, table_data: Optional[List[List[str]]] = None, location: str = 'body'):
         self.validate_location(location, ['body'])
         
         if not os.path.exists(table_template_path):
@@ -193,22 +221,12 @@ class TableInserter(ContentInserter):
             data_cols = max(len(row) for row in table_data) if table_data else 0
             
             for row_idx, row in enumerate(template_table.rows):
-                if row_idx < offset_y:
-                    continue
-                
-                data_row_idx = row_idx - offset_y
-                if data_row_idx >= data_rows:
+                if row_idx >= data_rows:
                     break
-                
                 for cell_idx, cell in enumerate(row.cells):
-                    if cell_idx < offset_x:
-                        continue
-                    
-                    data_cell_idx = cell_idx - offset_x
-                    if data_cell_idx >= len(table_data[data_row_idx]):
+                    if cell_idx >= len(table_data[row_idx]):
                         break
-                    
-                    cell_value = table_data[data_row_idx][data_cell_idx]
+                    cell_value = table_data[row_idx][cell_idx]
                     if cell_value and str(cell_value).strip():
                         for paragraph in cell.paragraphs:
                             for run in paragraph.runs:
@@ -223,16 +241,85 @@ class TableInserter(ContentInserter):
                                     break
         
         results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
+        
+        # 如果在指定位置找不到，尝试在body查找（表格通常在body中）
         if not results:
-            raise PlaceholderNotFoundError(placeholder, location)
+            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在 body 中查找...")
+            if location != 'body':
+                results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, 'body')
+                if results:
+                    print(f"在 body 中找到占位符 '{placeholder}'")
+                    location = 'body'
+        
+        if not results:
+            print(f"警告: 占位符 '{placeholder}' 未找到，跳过表格插入操作")
+            return
         
         for idx, paragraph in results:
             try:
-                if paragraph._element.getparent() is None:
-                    continue
+                # 尝试标准替换
                 PlaceholderFinder.replace_paragraph_with_element(paragraph, template_table._element)
-            except (AttributeError, ValueError, TypeError) as e:
-                raise DocxTemplateError(f"Failed to replace placeholder '{placeholder}': {str(e)}")
+            except (AttributeError, ValueError, TypeError, DocxTemplateError) as e:
+                # 如果标准替换失败，尝试在单元格内插入
+                try:
+                    print(f"尝试在单元格内插入表格 '{placeholder}'...")
+                    self._insert_table_in_cell(paragraph, template_table)
+                except Exception as e2:
+                    print(f"警告: 无法替换占位符 '{placeholder}' 为表格: {str(e)}")
+                    print(f"      尝试在单元格内插入也失败: {str(e2)}")
+                    continue
+    
+    def _insert_table_in_cell(self, paragraph, template_table):
+        """在表格单元格内插入表格"""
+        # 查找包含该段落的单元格
+        cell = self._find_parent_cell(paragraph)
+        if cell is None:
+            raise DocxTemplateError("Cannot find parent cell for paragraph")
+        
+        # 清除占位符所在段落的内容
+        paragraph.clear()
+        
+        # 在单元格中添加表格
+        # 由于 python-docx 不直接支持在单元格中添加表格，我们需要手动操作 XML
+        from lxml import etree
+        
+        # 获取单元格的元素
+        cell_element = cell._element
+        
+        # 复制模板表格的元素
+        new_table_element = deepcopy(template_table._element)
+        
+        # 将表格元素插入到单元格中
+        # 找到段落在单元格中的位置
+        p_element = paragraph._element
+        p_index = list(cell_element).index(p_element)
+        
+        # 移除占位符段落
+        cell_element.remove(p_element)
+        
+        # 在相同位置插入表格
+        cell_element.insert(p_index, new_table_element)
+        
+        print(f"成功在单元格内插入表格")
+    
+    def _find_parent_cell(self, paragraph):
+        """查找段落所在的表格单元格"""
+        try:
+            p_element = paragraph._element
+            current = p_element.getparent()
+            
+            # 向上查找，直到找到 tc (table cell) 元素
+            while current is not None:
+                # tc 是表格单元格的 XML 标签
+                if current.tag.endswith('tc'):
+                    # 创建一个 Cell 对象包装这个元素
+                    from docx.table import _Cell
+                    return _Cell(current, None)
+                current = current.getparent()
+            
+            return None
+        except Exception:
+            return None
 
 class ImageInserter(ContentInserter):
     def insert(self, placeholder: str, image_paths: List[str], width: Optional[Any] = None, 
@@ -242,9 +329,16 @@ class ImageInserter(ContentInserter):
         if not image_paths:
             raise DocxTemplateError(f"No image paths provided for placeholder '{placeholder}'")
         
+        # 处理图片路径，自动添加 data_files 前缀
+        processed_image_paths = []
         for img_path in image_paths:
-            if not os.path.exists(img_path):
-                raise DocxTemplateError(f"Image file not found: {img_path}")
+            processed_path = self._resolve_image_path(img_path)
+            if not os.path.exists(processed_path):
+                raise DocxTemplateError(f"Image file not found: {processed_path} (original: {img_path})")
+            processed_image_paths.append(processed_path)
+        
+        # 使用处理后的路径
+        image_paths = processed_image_paths
         
         self._validate_image_dimensions(width, height)
         
@@ -280,13 +374,24 @@ class ImageInserter(ContentInserter):
             return paragraphs
         
         results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
+        
+        # 如果在指定位置找不到，尝试在所有位置查找
         if not results:
-            raise PlaceholderNotFoundError(placeholder, location)
+            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
+            for loc in ['header', 'body', 'footer']:
+                if loc != location:
+                    results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
+                    if results:
+                        print(f"在 {loc} 中找到占位符 '{placeholder}'")
+                        location = loc
+                        break
+        
+        if not results:
+            print(f"警告: 占位符 '{placeholder}' 在所有位置都未找到，跳过图片插入操作")
+            return
         
         for idx, paragraph in results:
             try:
-                if paragraph._element.getparent() is None:
-                    continue
                 parent_element = self._get_parent_element(paragraph)
                 self._replace_placeholder_with_images(paragraph, create_image_paragraphs, parent_element)
             except (AttributeError, ValueError, TypeError) as e:
@@ -328,6 +433,31 @@ class ImageInserter(ContentInserter):
         except Exception:
             return None
 
+    def _resolve_image_path(self, img_path: str) -> str:
+        """解析图片路径，如果是相对路径则添加 data_files 前缀"""
+        # 如果路径已经存在，直接返回
+        if os.path.exists(img_path):
+            return img_path
+        
+        # 如果是相对路径（以 ./ 或直接文件名开头），尝试添加 data_files 前缀
+        if not os.path.isabs(img_path):
+            # 移除开头的 ./
+            clean_path = img_path.lstrip('./')
+            clean_path = clean_path.lstrip('.\\')
+            
+            # 尝试在 data_files 目录中查找
+            data_files_path = os.path.join('data_files', clean_path)
+            if os.path.exists(data_files_path):
+                return data_files_path
+            
+            # 尝试相对于当前工作目录的 data_files
+            cwd_data_files_path = os.path.join(os.getcwd(), 'data_files', clean_path)
+            if os.path.exists(cwd_data_files_path):
+                return cwd_data_files_path
+        
+        # 如果都找不到，返回原路径（会在后续检查中报错）
+        return img_path
+
     def _validate_image_dimensions(self, width, height):
         from docx.shared import Length
         valid_dimensions = []
@@ -362,15 +492,12 @@ class DocxTemplateProcessor:
         return self
     
     def add_table(self, placeholder: str, table_template_path: str, 
-                  table_data: Optional[List[List[str]]] = None,
-                  offset_x: int = 0, offset_y: int = 0):
+                  table_data: Optional[List[List[str]]] = None):
         self.operations.append({
             'type': 'table',
             'placeholder': placeholder,
             'table_template_path': table_template_path,
-            'table_data': table_data,
-            'offset_x': offset_x,
-            'offset_y': offset_y
+            'table_data': table_data
         })
         return self
     
@@ -447,10 +574,7 @@ class DocxTemplateProcessor:
                 elif op['type'] == 'table':
                     inserter = TableInserter(self.doc)
                     inserter.insert(op['placeholder'], op['table_template_path'], 
-                                  op['table_data'], 
-                                  int(op.get('offset_x', 0)), 
-                                  int(op.get('offset_y', 0)), 
-                                  'body')
+                                  op['table_data'], 'body')
                 
                 elif op['type'] == 'image':
                     inserter = ImageInserter(self.doc)
