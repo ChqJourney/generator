@@ -85,16 +85,10 @@
         {
           "type": "calculate",
           "column": 5,
-          "operation": "formula=E{row}/C{row}",
+          "operation": "formula=F{row}/C{row}",
           "decimal": 2
         },
         
-        {
-          "type": "calculate",
-          "column": 6,
-          "operation": "average",
-          "decimal": 0
-        },
         {
           "type": "calculate",
           "column": 7,

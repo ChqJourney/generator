@@ -137,31 +137,29 @@ class TextInserter(ContentInserter):
     def insert(self, placeholder: str, value: str, location: str = 'body'):
         self.validate_location(location, ['body', 'header', 'footer'])
         
-        # 如果没有指定location或者在指定location找不到，则在所有位置查找
-        results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
+        # 始终在所有位置查找占位符
+        results = []
+        searched_locations = []
         
-        # 如果在指定位置找不到，尝试在所有位置查找
-        if not results:
-            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
-            for loc in ['header', 'body', 'footer']:
-                if loc != location:  # 跳过已经搜索过的位置
-                    results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
-                    if results:
-                        print(f"在 {loc} 中找到占位符 '{placeholder}'")
-                        location = loc  # 更新location
-                        break
+        for loc in ['body', 'header', 'footer']:
+            loc_results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
+            if loc_results:
+                searched_locations.append(loc)
+                results.extend(loc_results)
+                print(f"在 {loc} 中找到占位符 '{placeholder}' ({len(loc_results)} 处)")
         
         if not results:
             print(f"警告: 占位符 '{placeholder}' 在所有位置都未找到，跳过此操作")
             return
         
-        replaced = False
+        # 直接在所有找到的paragraphs上尝试替换
+        # _replace_in_paragraph会检查placeholder是否存在，不存在则返回False
+        replaced_count = 0
         for idx, paragraph in results:
             if TextInserter._replace_in_paragraph(paragraph, placeholder, value):
-                replaced = True
+                replaced_count += 1
         
-        if not replaced:
-            print(f"警告: 占位符 '{placeholder}' 未能成功替换，跳过此操作")
+        print(f"成功替换占位符 '{placeholder}' {replaced_count} 处，总计 {len(results)} 处")
     
     def _iterate_placeholders(self, location):
         if location == 'body':
@@ -191,15 +189,16 @@ class TextInserter(ContentInserter):
 
     @staticmethod
     def _replace_in_paragraph(paragraph, placeholder, value):
-        if placeholder in paragraph.text:
+        full_placeholder = '{{' + placeholder + '}}'
+        if full_placeholder in paragraph.text:
             runs = paragraph.runs
             if runs:
                 for run in runs:
-                    if placeholder in run.text:
-                        if '{{' + placeholder + '}}' in run.text:
-                            run.text = run.text.replace('{{' + placeholder + '}}', value)
-                        else:
-                            run.text = run.text.replace(placeholder, value)
+                    if full_placeholder in run.text:
+                        run.text = run.text.replace(full_placeholder, value)
+                        return True
+                    elif placeholder in run.text:
+                        run.text = run.text.replace(placeholder, value)
                         return True
         return False
 

@@ -210,38 +210,51 @@
           ]
         },
         {
-          "type": "format_column",
+          "type": "calculate",
           "column": 1,
-          "decimal": 1
+          "operation": "average",
+          "decimal": 3
         },
         {
-          "type": "format_column",
+          "type": "calculate",
           "column": 2,
+          "operation": "average",
           "decimal": 1
         },
         {
           "type": "calculate",
           "column": 3,
           "operation": "average",
-          "decimal": 1
+          "decimal": 2
         },
         {
           "type": "calculate",
           "column": 4,
           "operation": "average",
-          "decimal": 1
+          "function": "lambda x: f'{x:.2f}' if x < 100 else f'{x:.1f}'"
+        },
+        {
+          "type": "format_column",
+          "column": 4,
+          "function": "lambda x: f'{x:.2f}' if x < 100 else f'{x:.1f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 5,
+          "operation": "formula=E{row}/C{row}",
+          "decimal": 2
         },
         {
           "type": "calculate",
           "column": 5,
           "operation": "average",
-          "decimal": 1
+          "decimal": 2
         },
         {
           "type": "calculate",
           "column": 6,
-          "operation": "formula=F{row}/C{row}*1000",
-          "decimal": 4
+           "operation": "average",
+          "decimal":0
         },
         {
           "type": "calculate",

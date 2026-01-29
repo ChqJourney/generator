@@ -10,41 +10,102 @@ import math
 class TableDataTransformer:
     """表格数据转换器"""
     
-    def transform(self, 
-                  data: List[List[Any]], 
-                  transformations: List[Dict],
-                  metadata: Optional[Dict] = None,
-                  targets_data: Optional[Dict] = None) -> List[List[Any]]:
-        """
-        对原始数据进行转换
-        
-        Args:
-            data: 原始二维数组数据
-            transformations: 转换规则列表
-            metadata: 元数据（用于metadata类型的数据源）
-        
-        Returns:
-            转换后的数据
-        """
+    def transform(self, data, transformations, metadata=None, targets_data=None):
         result = [row[:] for row in data]
+    
+        # 分离average和非average操作
+        avg_configs = []
+        other_transforms = []
+    
         for transform in transformations:
-            transform_type = transform.get('type')
-            
-            if transform_type == 'skip_columns':
-                result = self._apply_skip_columns(result, transform)
-            elif transform_type == 'add_column':
-                result = self._apply_add_column(result, transform, metadata, targets_data)
-            elif transform_type == 'calculate':
-                result = self._apply_calculate(result, transform)
-            elif transform_type == 'format_column':
-                result = self._apply_format_column(result, transform)
-            elif transform_type == 'reorder':
-                result = self._apply_reorder(result, transform)
-            elif transform_type == 'filter_rows':
-                result = self._apply_filter_rows(result, transform)
-        
+            if transform.get('type') == 'calculate' and transform.get('operation') in ['average', 'sum', 'max', 'min']:
+                avg_configs.append(transform)
+            else:
+                other_transforms.append(transform)
+    
+        # 先执行非average操作
+        for transform in other_transforms:
+            result = self._execute_transform(result, transform, metadata, targets_data)
+    
+        # 统一处理所有average操作
+        if avg_configs:
+            result = self._apply_aggregations(result, avg_configs)
+    
         return result
     
+    def _apply_aggregations(self, data: List[List[Any]], configs: List[Dict]) -> List[List[Any]]:
+        """统一处理所有聚合操作"""
+        result = [row[:] for row in data]
+        
+        if not result:
+            return result
+        
+        # 添加一个聚合行
+        agg_row = [''] * len(result[0])
+        
+        for config in configs:
+            column = config.get('column')
+            if column is None:
+                continue
+            operation = config.get('operation')
+            decimal = config.get('decimal')
+            function = config.get('function', None)
+            
+            if operation == 'average':
+                values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
+                if values:
+                    agg_value = statistics.mean(values)
+                    if function:
+                        agg_row[column] = self._apply_function_value(agg_value, function)
+                    else:
+                        agg_row[column] = self._format_number(agg_value, decimal)
+            elif operation == 'sum':
+                values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
+                if values:
+                    agg_value = sum(values)
+                    if function:
+                        agg_row[column] = self._apply_function_value(agg_value, function)
+                    else:
+                        agg_row[column] = self._format_number(agg_value, decimal)
+            elif operation == 'max':
+                values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
+                if values:
+                    agg_value = max(values)
+                    if function:
+                        agg_row[column] = self._apply_function_value(agg_value, function)
+                    else:
+                        agg_row[column] = self._format_number(agg_value, decimal)
+            elif operation == 'min':
+                values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
+                if values:
+                    agg_value = min(values)
+                    if function:
+                        agg_row[column] = self._apply_function_value(agg_value, function)
+                    else:
+                        agg_row[column] = self._format_number(agg_value, decimal)
+        
+        result.append(agg_row)
+        return result
+    
+    def _execute_transform(self, data: List[List[Any]], transform: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
+        """执行单个转换操作"""
+        transform_type = transform.get('type')
+        
+        if transform_type == 'skip_columns':
+            return self._apply_skip_columns(data, transform)
+        elif transform_type == 'add_column':
+            return self._apply_add_column(data, transform, metadata, targets_data)
+        elif transform_type == 'calculate':
+            return self._apply_calculate(data, transform)
+        elif transform_type == 'format_column':
+            return self._apply_format_column(data, transform)
+        elif transform_type == 'reorder':
+            return self._apply_reorder(data, transform)
+        elif transform_type == 'filter_rows':
+            return self._apply_filter_rows(data, transform)
+        
+        return data
+
     def _apply_skip_columns(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
         """
         跳过指定列
@@ -67,7 +128,7 @@ class TableDataTransformer:
         
         return result
     
-    def _apply_add_column(self, data: List[List[Any]], config: Dict, metadata: Dict, targets_data: Optional[Dict] = None) -> List[List[Any]]:
+    def _apply_add_column(self, data: List[List[Any]], config: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
         """
         添加列
         
@@ -129,6 +190,8 @@ class TableDataTransformer:
         
         return result
     
+
+    
     def _apply_calculate(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
         """
         计算列
@@ -140,14 +203,6 @@ class TableDataTransformer:
             "operation": "formula=B{row}/A{row}*1000",  # {row}表示当前行号
             "decimal": 1
         }
-        
-        配置示例 - 行聚合:
-        {
-            "type": "calculate",
-            "column": 5,
-            "operation": "average",  # 或 "sum", "max", "min"
-            "decimal": 2
-        }
         """
         column = config.get('column')
         operation = config.get('operation', '')
@@ -155,39 +210,15 @@ class TableDataTransformer:
         print(f"Calculating column {column} with operation {operation} and decimal {decimal}")
         result = [row[:] for row in data]
         
-        if operation == 'average':
-            values = [float(row[column]) for row in data if column < len(row) and self._is_numeric(row[column])]
-            if values and result:
-                avg_value = statistics.mean(values)
-                result[-1][column] = self._format_number(avg_value, decimal)
-        
-        elif operation == 'sum':
-            values = [float(row[column]) for row in data if column < len(row) and self._is_numeric(row[column])]
-            if values and result:
-                sum_value = sum(values)
-                result[-1][column] = self._format_number(sum_value, decimal)
-        
-        elif operation == 'max':
-            values = [float(row[column]) for row in data if column < len(row) and self._is_numeric(row[column])]
-            if values and result:
-                max_value = max(values)
-                result[-1][column] = self._format_number(max_value, decimal)
-        
-        elif operation == 'min':
-            values = [float(row[column]) for row in data if column < len(row) and self._is_numeric(row[column])]
-            if values and result:
-                min_value = min(values)
-                result[-1][column] = self._format_number(min_value, decimal)
-        
-        elif operation.startswith('formula='):
+        if operation.startswith('formula='):
             print(f"Applying formula calculation on column {column} with operation {operation}")
             formula = operation.split('=', 1)[1]
             for row_idx, row in enumerate(result):
                 try:
-                    formula_exp = formula.replace('{row}', str(row_idx))
+                    formula_exp = self._parse_column_references(formula, row_idx, row)
                     print(f"Evaluating formula for row {row_idx}: {formula_exp}")
-                    formula_exp = self._parse_column_references(formula_exp, row_idx, row)
-                    
+                    formula_exp = formula_exp.replace('{row}', str(row_idx))
+
                     evaluated_value = eval(formula_exp)
                     print(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
                     row[column] = self._format_number(evaluated_value, decimal)
@@ -195,6 +226,28 @@ class TableDataTransformer:
                     pass
         
         return result
+    
+    def _apply_function_value(self, value: float, func_str: str) -> str:
+        """使用函数格式化单个值"""
+        try:
+            format_func = eval(func_str)
+            return format_func(value)
+        except Exception as e:
+            print(f"Failed to format value {value} with function: {e}")
+            return str(value)
+    
+    def _find_or_add_avg_row(self, data: List[List[Any]]) -> int:
+        """查找或添加平均行"""
+        for idx, row in enumerate(data):
+            if len([cell for cell in row if cell is not None and 'Avg' in str(cell)]) > 0:
+                return idx
+        
+        # 没找到，添加新行
+        if data and data[0]:
+            avg_row = [''] * len(data[0])
+            data.append(avg_row)
+            return len(data) - 1
+        return 0
     
     def _apply_format_column(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
         """
@@ -225,7 +278,7 @@ class TableDataTransformer:
         
         return data
     
-    def _apply_function_format(self, data: List[List[Any]], column: int, func_str: str) -> List[List[Any]]:
+    def _apply_function_format(self, data: List[List[Any]], column: any, func_str: str) -> List[List[Any]]:
         """函数式格式化"""
         result = [row[:] for row in data]
         
@@ -236,7 +289,7 @@ class TableDataTransformer:
             return data
         
         for row in result:
-            if column < len(row) and self._is_numeric(row[column]):
+            if column is not None and column < len(row) and self._is_numeric(row[column]):
                 value = float(row[column])
                 try:
                     row[column] = format_func(value)
@@ -246,7 +299,7 @@ class TableDataTransformer:
         
         return result
     
-    def _apply_fixed_decimal(self, data: List[List[Any]], column: int, decimal: int) -> List[List[Any]]:
+    def _apply_fixed_decimal(self, data: List[List[Any]], column: any, decimal: int) -> List[List[Any]]:
         """固定小数位格式化"""
         result = [row[:] for row in data]
         for row in result:
