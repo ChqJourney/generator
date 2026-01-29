@@ -13,23 +13,23 @@ class TableDataTransformer:
     def transform(self, data, transformations, metadata=None, targets_data=None):
         result = [row[:] for row in data]
     
-        # 分离average和非average操作
-        avg_configs = []
+        # 分离聚合操作和非聚合操作
+        agg_configs = []
         other_transforms = []
     
         for transform in transformations:
             if transform.get('type') == 'calculate' and transform.get('operation') in ['average', 'sum', 'max', 'min']:
-                avg_configs.append(transform)
+                agg_configs.append(transform)
             else:
                 other_transforms.append(transform)
     
-        # 先执行非average操作
+        # 先执行非聚合操作
         for transform in other_transforms:
             result = self._execute_transform(result, transform, metadata, targets_data)
     
-        # 统一处理所有average操作
-        if avg_configs:
-            result = self._apply_aggregations(result, avg_configs)
+        # 统一处理所有聚合操作
+        if agg_configs:
+            result = self._apply_aggregations(result, agg_configs)
     
         return result
     
@@ -85,6 +85,49 @@ class TableDataTransformer:
                         agg_row[column] = self._format_number(agg_value, decimal)
         
         result.append(agg_row)
+        return result
+    
+    def _apply_single_aggregation(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
+        """执行单个聚合操作"""
+        result = [row[:] for row in data]
+        
+        if not result:
+            return result
+        
+        column = config.get('column')
+        if column is None:
+            return result
+        
+        operation = config.get('operation')
+        decimal = config.get('decimal')
+        function = config.get('function', None)
+        
+        values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
+        
+        if not values:
+            return result
+        
+        if operation == 'average':
+            agg_value = statistics.mean(values)
+        elif operation == 'sum':
+            agg_value = sum(values)
+        elif operation == 'max':
+            agg_value = max(values)
+        elif operation == 'min':
+            agg_value = min(values)
+        else:
+            return result
+        
+        agg_row = [''] * len(result[0])
+        agg_row[0] = 'Average'
+        
+        if function:
+            agg_row[column] = self._apply_function_value(agg_value, function)
+        else:
+            agg_row[column] = self._format_number(agg_value, decimal)
+        
+        result.append(agg_row)
+        print(f'Added aggregation row for column {column}: {agg_row}')
         return result
     
     def _execute_transform(self, data: List[List[Any]], transform: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
@@ -207,6 +250,7 @@ class TableDataTransformer:
         column = config.get('column')
         operation = config.get('operation', '')
         decimal = config.get('decimal', None)
+        function = config.get('function', None)
         print(f"Calculating column {column} with operation {operation} and decimal {decimal}")
         result = [row[:] for row in data]
         

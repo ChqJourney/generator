@@ -15,6 +15,19 @@
       "type": "text"
     },
     {
+      "template_field": "applicant_name",
+      "source": "metadata",
+      "source_field": "applicant_name",
+      "type": "text"
+    },
+    {
+      "template_field": "applicant_address",
+      "source": "metadata",
+      "source_field": "applicant_address",
+      "type": "text"
+    },
+
+    {
       "template_field": "model_identifier",
       "source": "extracted_data",
       "source_field": "model_identifier",
@@ -34,8 +47,11 @@
       "type": "table",
       "row_strategy": "fixed_rows",
       "header_rows": 2,
+      "skip_columns": [
+        1
+      ],
       "target_headers": [
-        "model_identifier",
+      "model_identifier",
       "sequence_no",
       "Current",
       "Power",
@@ -54,41 +70,58 @@
     ],
       "transformations": [
         {
-          "type": "add_column",
-          "position": 0,
-          "source": "metadata:model_identifier"
+          "type": "skip_columns",
+          "columns": [
+            1
+          ]
         },
         {
           "type": "calculate",
           "column": 1,
           "operation": "average",
-          "decimal": 2
+          "function":"lambda x: f'{x:.2f}%'"
         },
         {
           "type": "calculate",
           "column": 2,
           "operation": "average",
-          "decimal": 4
+          "decimal": 1
         },
         {
           "type": "calculate",
           "column": 3,
           "operation": "average",
-          "decimal": 4
+          "decimal": 2
         },
         {
           "type": "calculate",
           "column": 4,
           "operation": "average",
-          "decimal": 1
+          "function": "lambda x: f'{x:.2f}' if x < 100 else f'{x:.1f}'"
+        },
+        {
+          "type": "format_column",
+          "column": 4,
+          "function": "lambda x: f'{x:.2f}' if x < 100 else f'{x:.1f}'"
         },
         {
           "type": "calculate",
           "column": 5,
-          "operation": "formula=F{row}/C{row}",
+          "operation": "formula=E{row}/C{row}",
           "decimal": 2
         },
-        
+        {
+          "type": "calculate",
+          "column": 5,
+          "operation": "average",
+          "decimal": 2
+        },
+        {
+          "type": "calculate",
+          "column": 6,
+           "operation": "average",
+          "decimal":0
+        },
         {
           "type": "calculate",
           "column": 7,
@@ -122,6 +155,18 @@
         {
           "type": "calculate",
           "column": 12,
+          "operation": "average",
+          "decimal": 2
+        },
+        {
+          "type": "calculate",
+          "column": 13,
+          "operation": "average",
+          "decimal": 2
+        },
+        {
+          "type": "calculate",
+          "column": 14,
           "operation": "average",
           "decimal": 2
         }

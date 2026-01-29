@@ -22,11 +22,34 @@ src/table_processor/
 - ✅ **reorder** - 列重排序
 - ✅ **filter_rows** - 行过滤
 
+**重要特性：**
+- 聚合操作（average, sum, max, min）会合并到同一个 Average 行中
+- 聚合操作在所有非聚合操作执行完毕后统一处理
+- 支持在聚合操作中使用 `function` 参数直接格式化结果（如百分比）
+
 #### 增强版表格插入器 (EnhancedTableInserter)
 - ✅ **fixed_rows** - 固定行数模式
 - ✅ **dynamic_rows** - 动态行数模式
 - ✅ **skip_columns** - 自动跳过模板中的固定列
 - ✅ **header_rows** - 指定表头行数
+
+### 3. 百分比格式化最佳实践
+
+**问题：** 如果在聚合操作之前使用 `format_column` 格式化数据，会将数值转换为字符串（如 `"95.99%"`），导致聚合操作无法计算。
+
+**解决方案：** 直接在 `calculate` 操作中使用 `function` 参数。
+
+**示例：**
+```json
+{
+  "type": "calculate",
+  "column": 1,
+  "operation": "average",
+  "function": "lambda x: f'{x:.2f}%'"
+}
+```
+
+这样可以在计算平均值的同时，将结果格式化为百分比格式。
 
 ### 3. 小数点控制 - 函数式实现
 
@@ -223,6 +246,7 @@ src/table_processor/
 | SDCM | `lambda x: f'{x:.0f}'` | 固定0位 |
 | 闪烁值 | `lambda x: f'{x:.4f}' if abs(x) < 1 else f'{x:.2f}'` | <1:4位, ≥1:2位 |
 | 待机功率 | `lambda x: f'{x:.2f}'` | 固定2位 |
+| 百分比 | `lambda x: f'{x:.2f}%'` | 2位+百分号 |
 
 #### 工作原理
 
@@ -364,8 +388,9 @@ elif op['type'] == 'table':
 ✅ 支持函数式小数点控制
 ✅ 支持skip_columns机制
 ✅ 支持fixed_rows和dynamic_rows两种策略
+✅ 聚合操作支持function参数（百分比格式化）
 ✅ 测试脚本已创建并验证通过
 ✅ 配置文件示例已提供
 ✅ 使用文档已完成
 
-**当前状态**：模块实现完成，支持在JSON配置文件中使用函数式小数点控制。等待测试模板文件以进行完整的插入器测试，测试完成后可决定是否集成到processor.py。
+**当前状态**：模块实现完成，支持在JSON配置文件中使用函数式小数点控制。聚合同行合并功能已实现，百分比格式化最佳实践已记录。

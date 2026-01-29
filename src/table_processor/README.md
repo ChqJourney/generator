@@ -11,6 +11,46 @@ src/table_processor/
 └── table_inserter.py         # 增强版表格插入器
 ```
 
+## 重要说明
+
+### 转换操作执行顺序
+
+转换操作按配置文件的**顺序依次执行**，但有以下特例：
+
+- **聚合操作**（average, sum, max, min）会被收集到一起，在所有非聚合操作执行完毕后统一处理
+- 所有聚合操作会合并到同一个 Average 行中，而不是每个操作都创建新行
+
+### 百分比格式化最佳实践
+
+如果需要对聚合结果进行百分比格式化，**直接在 `calculate` 中使用 `function` 参数**，而不要使用 `format_column`。
+
+**正确方式：**
+```json
+{
+  "type": "calculate",
+  "column": 1,
+  "operation": "average",
+  "function": "lambda x: f'{x:.2f}%'"
+}
+```
+
+**错误方式：**
+```json
+{
+  "type": "calculate",
+  "column": 1,
+  "operation": "average",
+  "decimal": 2
+},
+{
+  "type": "format_column",
+  "column": 1,
+  "function": "lambda x: f'{x:.2f}%'"
+}
+```
+
+**原因：** `format_column` 会在聚合计算之前执行，将原始数据转换为字符串（如 `"95.99%"`），导致聚合操作无法数值计算。
+
 ## 核心功能
 
 ### 1. 数据转换器 (TableDataTransformer)
@@ -50,6 +90,9 @@ src/table_processor/
 ```
 
 #### calculate - 计算列
+
+**重要：** 聚合操作（average, sum, max, min）会合并到同一个 Average 行中。
+
 ```python
 # 计算平均值
 {
@@ -59,11 +102,35 @@ src/table_processor/
     "decimal": 1
 }
 
+# 计算平均值并格式化为百分比（推荐方式）
+{
+    "type": "calculate",
+    "column": 1,
+    "operation": "average",
+    "function": "lambda x: f'{x:.2f}%'"
+}
+
 # 计算总和
 {
     "type": "calculate",
     "column": 2,
     "operation": "sum",
+    "decimal": 2
+}
+
+# 计算最大值
+{
+    "type": "calculate",
+    "column": 2,
+    "operation": "max",
+    "decimal": 2
+}
+
+# 计算最小值
+{
+    "type": "calculate",
+    "column": 2,
+    "operation": "min",
     "decimal": 2
 }
 
