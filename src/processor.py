@@ -1,6 +1,7 @@
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml import parse_xml
 import sys
 import shutil
 import os
@@ -8,6 +9,7 @@ from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from table_processor import EnhancedTableInserter, TableDataTransformer
+from utils.table_utils import set_cell_value
 
 class DocxTemplateError(Exception):
     pass
@@ -318,15 +320,7 @@ class TableInserter(ContentInserter):
     
     def _set_cell_value(self, cell: Any, value: str):
         """设置单元格值"""
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.text = value
-                return          # 找到run并设置后直接返回
-        # 没有run则使用第一个paragraph
-        if cell.paragraphs:
-            cell.paragraphs[0].add_run(value)
-        else:
-            cell.add_paragraph(value)
+        set_cell_value(cell, value)
     
     def _insert_table_in_cell(self, paragraph, template_table):
         cell = self._find_parent_cell(paragraph)
@@ -353,8 +347,6 @@ class TableInserter(ContentInserter):
                     return _Cell(current, None)
                 current = current.getparent()
             
-            return None
-        except Exception:
             return None
         except Exception:
             return None
@@ -508,6 +500,67 @@ class ImageInserter(ContentInserter):
             if not isinstance(dimension, Length):
                 raise DocxTemplateError(f"Invalid image dimension '{dimension}'. Must be a Length object (e.g., Inches, Mm, Cm, Pt)")
 
+class CheckboxInserter(ContentInserter):
+    """批量更新Word文档中的checkbox状态"""
+    
+    def insert(self, checkbox_mapping: Dict[str, bool]):
+        """
+        根据checkbox名称批量更新checkbox的勾选状态
+        
+        Args:
+            checkbox_mapping: 字典，key为checkbox的name属性值，value为bool表示是否勾选
+        """
+        root = self.doc.part.element
+        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        w_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+        
+        checkboxes = root.findall('.//w:checkBox', namespaces=ns)
+        updated = {}
+        not_found = set(checkbox_mapping.keys())
+        
+        for checkbox in checkboxes:
+            ffdata = checkbox.getparent()
+            if ffdata is not None:
+                name = ffdata.find('w:name', namespaces=ns)
+                if name is not None:
+                    field_name = name.get(w_ns + 'val')
+                    
+                    if field_name in checkbox_mapping:
+                        should_check = checkbox_mapping[field_name]
+                        not_found.discard(field_name)
+                        
+                        checked = checkbox.find('w:checked', namespaces=ns)
+                        default = checkbox.find('w:default', namespaces=ns)
+                        
+                        if should_check:
+                            if checked is None:
+                                new_checked = parse_xml(f'<w:checked w:val="1" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>')
+                                checkbox.append(new_checked)
+                            else:
+                                checked.set(w_ns + 'val', '1')
+                            if default is not None:
+                                default.set(w_ns + 'val', '1')
+                            updated[field_name] = True
+                        else:
+                            if checked is not None:
+                                checkbox.remove(checked)
+                            if default is not None:
+                                default.set(w_ns + 'val', '0')
+                            updated[field_name] = False
+        
+        # 打印更新结果
+        if updated:
+            print(f"成功更新 {len(updated)} 个checkbox:")
+            for name, checked in updated.items():
+                status = "勾选" if checked else "取消勾选"
+                print(f"  {name}: {status}")
+        
+        # 警告未找到的checkbox
+        if not_found:
+            print(f"警告: 以下 {len(not_found)} 个checkbox在文档中未找到，已跳过:")
+            for name in sorted(not_found):
+                print(f"  - {name}")
+
 class DocxTemplateProcessor:
     def __init__(self, template_path: str, output_path: str):
         if not os.path.exists(template_path):
@@ -516,10 +569,25 @@ class DocxTemplateProcessor:
         self.template_path = template_path
         self.output_path = output_path
         self.operations = []
-        
+        # if file already exist and in use, throw exeption,don't read content 
+        if DocxTemplateProcessor.is_word_file_open(output_path):
+            raise DocxTemplateError(f"Output file is currently open in Word: {output_path}")
         shutil.copy(template_path, output_path)
         self.doc = Document(output_path)
+    @staticmethod
+    def is_word_file_open(file_path):
+        directory = os.path.dirname(file_path)
+        filename = os.path.basename(file_path)
     
+        # Word 的锁文件规则：将文件名前两个字符替换为 ~$
+        # 比如 test.docx -> ~$st.docx (注意：如果文件名很短，规则可能略有不同，但通常是 ~$ + 原名)
+        # 标准做法是直接在原文件名前加 ~$ (对于由 Word 创建的临时文件)
+    
+        # Word 具体的临时文件名为：~$ + 文件名
+        lock_filename = f"~${filename}"
+        lock_file_path = os.path.join(directory, lock_filename)
+    
+        return os.path.exists(lock_file_path)
     def add_text(self, placeholder: str, value: str, location: str = 'body'):
         self.operations.append({
             'type': 'text',
@@ -562,6 +630,19 @@ class DocxTemplateProcessor:
             'height': height,
             'alignment': alignment,
             'location': location
+        })
+        return self
+    
+    def add_checkboxes(self, checkbox_mapping: Dict[str, bool]):
+        """
+        批量添加checkbox状态更新操作
+        
+        Args:
+            checkbox_mapping: 字典，key为checkbox的name属性值，value为bool表示是否勾选
+        """
+        self.operations.append({
+            'type': 'checkbox',
+            'checkbox_mapping': checkbox_mapping
         })
         return self
     
@@ -640,6 +721,10 @@ class DocxTemplateProcessor:
                     inserter = ImageInserter(self.doc)
                     inserter.insert(op['placeholder'], op['image_paths'], 
                                   op['width'], op['height'], op['alignment'], op['location'])
+                
+                elif op['type'] == 'checkbox':
+                    inserter = CheckboxInserter(self.doc)
+                    inserter.insert(op['checkbox_mapping'])
             
             self.doc.save(self.output_path)
             print(f"文档已保存至: {self.output_path}")

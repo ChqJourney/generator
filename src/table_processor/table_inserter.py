@@ -3,9 +3,15 @@
 支持：固定行数/动态行数策略、跳过列、填充数据
 """
 
-from docx import Document
-from typing import List, Dict, Optional, Any
+import sys
 import os
+from typing import List, Dict, Optional, Any
+from docx import Document
+
+# 导入公共工具函数
+sys.path.insert(0, str(__file__).rsplit('\\', 2)[0])
+from utils.table_utils import set_cell_value
+
 
 class EnhancedTableInserter:
     """增强版表格插入器"""
@@ -19,6 +25,7 @@ class EnhancedTableInserter:
                raw_data: Optional[List[List[str]]] = None,
                transformations: Optional[List[Dict]] = None,
                metadata: Optional[Dict] = None,
+               targets_data: Optional[Dict] = None,
                row_strategy: str = 'fixed_rows',
                skip_columns: Optional[List[int]] = None,
                header_rows: int = 1,
@@ -32,6 +39,7 @@ class EnhancedTableInserter:
             raw_data: 原始数据
             transformations: 数据转换规则
             metadata: 元数据
+            targets_data: 目标数据
             row_strategy: 行策略 ('fixed_rows' 或 'dynamic_rows')
             skip_columns: 要跳过的列索引（模板中的固定列）
             header_rows: 表头行数
@@ -46,7 +54,7 @@ class EnhancedTableInserter:
         
         processed_data = raw_data
         if raw_data and transformations:
-            processed_data = transformer.transform(raw_data, transformations, metadata)
+            processed_data = transformer.transform(raw_data, transformations, metadata, targets_data)
         
         template_doc = Document(table_template_path)
         if not template_doc.tables:
@@ -89,7 +97,7 @@ class EnhancedTableInserter:
                 
                 if data_col_idx < len(data_row):
                     value = data_row[data_col_idx]
-                    self._set_cell_value(cell, str(value) if value else '')
+                    set_cell_value(cell, str(value) if value else '')
                     data_col_idx += 1
             
             data_row_idx += 1
@@ -124,23 +132,11 @@ class EnhancedTableInserter:
                 
                 if data_col_idx < len(data_row):
                     value = data_row[data_col_idx]
-                    self._set_cell_value(cell, str(value) if value else '')
+                    set_cell_value(cell, str(value) if value else '')
                     data_col_idx += 1
-    
-    def _set_cell_value(self, cell: Any, value: str):
-        """设置单元格值"""
-        for paragraph in cell.paragraphs:
-            for run in paragraph.runs:
-                run.text = value
-                break
-            if paragraph.runs:
-                break
-        else:
-            cell.add_paragraph(value)
     
     def _insert_to_document(self, placeholder: str, table: Any, location: str):
         """将表格插入到文档占位符位置"""
-        import sys
         sys.path.insert(0, str(os.path.dirname(__file__) + '/..'))
         from processor import PlaceholderFinder
         

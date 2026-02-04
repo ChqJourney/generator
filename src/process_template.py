@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from docx.shared import Inches
 
+from processor import DocxTemplateError
+
 sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
 
 try:
@@ -106,6 +108,11 @@ def main():
         result = processor.process()
         
         print(f"Report generated successfully: {result}")
+        # auto open the output file in windows
+        if sys.platform == "win32":
+            import os
+            os.startfile(output_path)
+
         return 0
     
     except FileNotFoundError as e:
@@ -113,6 +120,9 @@ def main():
         return 1
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in operations file - {e}", file=sys.stderr)
+        return 1
+    except DocxTemplateError as e:
+        print(f"DocxTemplateError: {e}", file=sys.stderr)
         return 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

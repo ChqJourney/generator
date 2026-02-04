@@ -3,9 +3,15 @@
 支持：跳过列、添加列、计算列、格式化列、列重排序、行过滤
 """
 
+import sys
 from typing import List, Dict, Optional, Any
 import statistics
 import math
+
+# 导入安全评估工具
+sys.path.insert(0, str(__file__).rsplit('\\', 2)[0])
+from utils.safe_eval import safe_eval_formula, safe_eval_lambda, SafeEvalError
+
 
 class TableDataTransformer:
     """表格数据转换器"""
@@ -195,15 +201,10 @@ class TableDataTransformer:
                     value = ''
                 else:
                     value=''
-                    # print(f"Looking for metadata key: {key}")
                     fields=metadata["fields"]
-                    # print(f"Metadata fields: {fields}")
                     for field in fields:
-                        # print(f"Checking field: {field} for {key}")
                         if field.get("name")==key:
-                            # print(f"Found metadata field for key: {key}")
                             value=field.get("value","")
-                            # print(f"Adding column at position {position} with value: {value}")
                             break
                     
             elif source.startswith('targets:'):
@@ -259,23 +260,33 @@ class TableDataTransformer:
             formula = operation.split('=', 1)[1]
             for row_idx, row in enumerate(result):
                 try:
+                    # 构建变量字典
+                    variables = {}
+                    for col_idx, val in enumerate(row):
+                        if self._is_numeric(val):
+                            variables[chr(65 + col_idx)] = float(val)  # A=0, B=1, ...
+                    
                     formula_exp = self._parse_column_references(formula, row_idx, row)
                     print(f"Evaluating formula for row {row_idx}: {formula_exp}")
-                    formula_exp = formula_exp.replace('{row}', str(row_idx))
-
-                    evaluated_value = eval(formula_exp)
+                    
+                    # 使用安全评估替代 eval
+                    evaluated_value = safe_eval_formula(formula_exp, variables)
                     print(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
                     row[column] = self._format_number(evaluated_value, decimal)
-                except:
-                    pass
+                except SafeEvalError as e:
+                    print(f"Safe eval error for row {row_idx}: {e}")
+                except Exception as e:
+                    print(f"Error calculating row {row_idx}: {e}")
         
         return result
     
     def _apply_function_value(self, value: float, func_str: str) -> str:
         """使用函数格式化单个值"""
         try:
-            format_func = eval(func_str)
-            return format_func(value)
+            return safe_eval_lambda(func_str, value)
+        except SafeEvalError as e:
+            print(f"Safe eval error for function '{func_str}': {e}")
+            return str(value)
         except Exception as e:
             print(f"Failed to format value {value} with function: {e}")
             return str(value)
@@ -326,17 +337,14 @@ class TableDataTransformer:
         """函数式格式化"""
         result = [row[:] for row in data]
         
-        try:
-            format_func = eval(func_str)
-        except Exception as e:
-            print(f"Failed to create format function: {e}")
-            return data
-        
         for row in result:
             if column is not None and column < len(row) and self._is_numeric(row[column]):
                 value = float(row[column])
                 try:
-                    row[column] = format_func(value)
+                    row[column] = safe_eval_lambda(func_str, value)
+                except SafeEvalError as e:
+                    print(f"Safe eval error for function '{func_str}': {e}")
+                    row[column] = str(value)
                 except Exception as e:
                     print(f"Failed to format value {value}: {e}")
                     row[column] = str(value)

@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "report_no": "RPT-2024-001",
+    "issue_date": "2024-03-15",
+    "applicant_name": "ABC Lighting Co., Ltd.",
+    "applicant_address": "123 Industrial Road, Shenzhen, China",
+    "product_name": "LED Downlight Series A",
+    "manufacturer": "ABC Lighting Co., Ltd.",
+    "sample_received_date": "2024-03-01",
+    "test_period": "2024-03-01 to 2024-03-10",
+    "test_item_type": "LED Luminaire",
+    "removable_or_replaceable_module": "No",
+    "replaceable_or_non_replaceable_control_gear": "Non-replaceable",
+    "lighting_technology": "LED",
+    "directional_or_non_directional": "Directional",
+    "connected_or_not": "No",
+    "mains_or_not": "Mains",
+    "color_tuneable": "No",
+    "test_mode": "Standard mode",
+    "controlgear_rating": "10W",
+    "test_location": "Lab A",
+    "test_at": "Ambient temperature 25°C"
+  },
+  "extracted_data": {
+    "model_identifier": "DL-A-10W-4000K",
+    "rated_wattage": "10.5",
+    "useful_luminous_flux": "1050",
+    "images": [
+      "data_files/images/product_front.jpg",
+      "data_files/images/product_side.jpg",
+      "data_files/images/product_back.jpg"
+    ],
+    "photometric_data": {
+      "type": "external",
+      "source_id": "test_results.xlsx|Photometric Data",
+      "start_row": 1,
+      "mapping": {
+        "Current": "Current(A)",
+        "Power": "Power(W)",
+        "PF": "PF",
+        "Total Luminous Flux": "Flux(lm)",
+        "Efficacy": "Efficacy(lm/W)",
+        "CCT": "CCT(K)",
+        "Ra": "Ra",
+        "R9": "R9",
+        "X": "X",
+        "Y": "Y",
+        "SDCM": "SDCM",
+        "Flicker Pst LM": "Pst",
+        "Stroboscopic Effect SVM": "SVM",
+        "Standby Power Psb": "Psb(W)"
+      }
+    }
+  },
+  "calculated_data": {}
+}

@@ -1,51 +1,97 @@
 """
 将字段映射配置转换为processor.py操作队列
+新架构：从calculated_report.json读取数据，支持点号路径访问
 """
 import json
 import sys
 import re
 from pathlib import Path
-from datetime import datetime
 from typing import Dict, Any, List, Optional
 from openpyxl import load_workbook
+from utils.path_navigator import DataNavigator
+
 
 def load_json(path: str) -> Dict:
     """加载JSON文件"""
     with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def extract_field_value(data: Dict, field_name: str) -> Any:
-    content = data.get('targets') or data.get('data', {})
-    if isinstance(content, dict):
-        field = content.get(field_name)
-        if field and isinstance(field, dict):
-            return field.get('value')
-        return field
-    elif isinstance(content, list):
-        for item in content:
-            if item['name'] == field_name:
-                return item.get('value')
-    return None
 
-def generate_operations(config: Dict, metadata: Dict, extracted_data: Dict) -> Dict:
-    """生成操作队列"""
-    operations = []
-
-    metadata_fields= {field['name']: field.get('value') for field in metadata.get('fields', [])}
-    for mapping in config.get('field_mappings', []):
-        source = mapping['source']
-        source_field = mapping['source_field']
-        field_type = mapping['type']
-        placeholder = mapping['template_field']
+def get_value_by_path(data: Dict, path: str) -> Any:
+    """
+    通过点号路径获取值
+    
+    Args:
+        data: 分层数据字典
+        path: 点号分隔的路径，如 'extracted_data.rated_wattage'
         
-        if source == 'metadata':
-            value = metadata_fields.get(source_field)
-        elif source == 'extracted_data':
-            value = extract_field_value(extracted_data, source_field)
-        else:
+    Returns:
+        路径对应的值
+    """
+    return DataNavigator.get_value(data, path)
+
+
+def is_external_table_reference(value: Any) -> bool:
+    """
+    判断值是否为外部表格引用（需要读取Excel）
+    
+    Args:
+        value: 字段值
+        
+    Returns:
+        bool: 是否需要从外部Excel读取
+    """
+    return (
+        isinstance(value, dict) and 
+        value.get('type') == 'external' and 
+        'source_id' in value
+    )
+
+
+def is_direct_table_data(value: Any) -> bool:
+    """
+    判断值是否为直接的表格数据（列表的列表）
+    
+    Args:
+        value: 字段值
+        
+    Returns:
+        bool: 是否是直接表格数据
+    """
+    return (
+        isinstance(value, list) and 
+        len(value) > 0 and 
+        isinstance(value[0], list)
+    )
+
+
+def generate_operations(config: Dict, report_data: Dict) -> Dict:
+    """
+    生成操作队列
+    
+    Args:
+        config: 配置字典
+        report_data: 计算后的报告数据（calculated_report.json）
+        
+    Returns:
+        Dict: 操作队列
+    """
+    operations = []
+    
+    for mapping in config.get('field_mappings', []):
+        source_field = mapping.get('source_field')
+        field_type = mapping.get('type')
+        placeholder = mapping.get('template_field')
+        
+        if not source_field:
+            print(f"Warning: Missing source_field for {placeholder}, skipping")
             continue
         
+        # 通过点号路径获取值
+        value = get_value_by_path(report_data, source_field)
+        
         if value is None:
+            print(f"Warning: Value not found for path '{source_field}', skipping {placeholder}")
             continue
         
         if field_type == 'text':
@@ -59,7 +105,6 @@ def generate_operations(config: Dict, metadata: Dict, extracted_data: Dict) -> D
             image_paths = value if isinstance(value, list) else [value]
             if image_paths and isinstance(image_paths[0], str):
                 try:
-                    import json
                     parsed = json.loads(image_paths[0])
                     image_paths = parsed
                 except:
@@ -75,12 +120,20 @@ def generate_operations(config: Dict, metadata: Dict, extracted_data: Dict) -> D
         
         elif field_type == 'table':
             table_data = None
-            if check_type(value):
+            
+            # 判断数据源类型
+            if is_direct_table_data(value):
+                # 直接是表格数据（内嵌）
                 table_data = value
-                print(table_data)
-            elif 'source_id' in value:
+                print(f"Using embedded table data for {placeholder}")
+            elif is_external_table_reference(value):
+                # 外部Excel引用
                 target_headers = mapping.get('target_headers')
-                table_data = build_table_data(value, target_headers)
+                table_data = build_table_data_from_excel(value, target_headers)
+                print(f"Loaded table data from Excel for {placeholder}")
+            else:
+                print(f"Warning: Unrecognized table data format for {placeholder}")
+                continue
             
             operation = {
                 'type': 'table',
@@ -89,36 +142,55 @@ def generate_operations(config: Dict, metadata: Dict, extracted_data: Dict) -> D
                 'table_data': table_data
             }
             
-            if 'transformations' in mapping:
-                operation['transformations'] = mapping['transformations']
-            if 'row_strategy' in mapping:
-                operation['row_strategy'] = mapping['row_strategy']
-            if 'skip_columns' in mapping:
-                operation['skip_columns'] = mapping['skip_columns']
-            if 'header_rows' in mapping:
-                operation['header_rows'] = mapping['header_rows']
+            # 添加可选参数
+            for key in ['transformations', 'row_strategy', 'skip_columns', 'header_rows']:
+                if key in mapping:
+                    operation[key] = mapping[key]
             
             operations.append(operation)
     
     return {'operations': operations}
 
-def build_table_data(value: Dict, target_headers: Optional[List[str]] = None) -> List[List[str]]:
+
+def build_table_data_from_excel(value: Dict, target_headers: Optional[List[str]] = None) -> List[List[str]]:
+    """
+    从Excel文件构建表格数据
+    
+    Args:
+        value: 包含source_id等信息的字典
+        target_headers: 目标表头列表
+        
+    Returns:
+        List[List[str]]: 表格数据
+    """
     source_id = value['source_id']
     sources = source_id.split('|')
     if len(sources) != 2:
+        print(f"Error: Invalid source_id format '{source_id}', expected 'file.xlsx|SheetName'")
         return []
+    
     file_path = sources[0]
     sheet_name = sources[1]
     start_row = value.get('start_row', 0)
     mapping = value.get('mapping', {})
     actual_path = 'data_files/' + file_path
+    
     print(f"Building table data from file: {actual_path}, sheet: {sheet_name}, start_row: {start_row}")
-    table_data = get_xlsx_to_list(actual_path, sheet_name, start_row, mapping, target_headers)
-    print(f"Extracted table data: {table_data}")
-    return table_data
+    
+    try:
+        table_data = get_xlsx_to_list(actual_path, sheet_name, start_row, mapping, target_headers)
+        print(f"Extracted {len(table_data)} rows of table data")
+        return table_data
+    except Exception as e:
+        print(f"Error reading Excel file: {e}")
+        return []
 
 
-def get_xlsx_to_list(file_path, sheet_name, start_row, mapping, target_headers) -> List[List[str]]:
+def get_xlsx_to_list(file_path: str, sheet_name: str, start_row: int, 
+                     mapping: Dict, target_headers: Optional[List[str]]) -> List[List[str]]:
+    """
+    读取Excel文件并转换为列表格式
+    """
     wb = load_workbook(filename=file_path, read_only=True, data_only=True)
     
     try:
@@ -152,7 +224,7 @@ def get_xlsx_to_list(file_path, sheet_name, start_row, mapping, target_headers) 
     if isinstance(mapping, list):
         mapping_dict = {m.get('name'): m.get('mapColumn') for m in mapping if isinstance(m, dict)}
     else:
-        mapping_dict = {}
+        mapping_dict = mapping
     
     if target_headers:
         for header in target_headers:
@@ -180,29 +252,41 @@ def get_xlsx_to_list(file_path, sheet_name, start_row, mapping, target_headers) 
     wb.close()
     return data
 
-def check_type(data):
-    # 逻辑：必须是一个list，且所有子元素是list，且所有子子元素是str
-    return (
-        isinstance(data, list) and 
-        all(isinstance(sub, list) for sub in data) and 
-        all(isinstance(item, str) for sub in data for item in sub)
-    )
 
 def main():
+    """命令行入口"""
     import argparse
-    parser = argparse.ArgumentParser(description='Generate processor operations from field mappings')
-    parser.add_argument('--config', required=True, help='Path to report_config.json')
-    parser.add_argument('--metadata', required=True, help='Path to metadata.json')
-    parser.add_argument('--extracted_data', required=True, help='Path to extracted_data.json')
-    parser.add_argument('--output', required=True, help='Path to output operations.json')
+    
+    parser = argparse.ArgumentParser(
+        description='Generate processor operations from field mappings (new architecture)'
+    )
+    parser.add_argument(
+        '--config', 
+        required=True, 
+        help='Path to report_config.json'
+    )
+    parser.add_argument(
+        '--report', 
+        required=True, 
+        help='Path to calculated_report.json'
+    )
+    parser.add_argument(
+        '--output', 
+        required=True, 
+        help='Path to output operations.json'
+    )
+    
     args = parser.parse_args()
     
     try:
+        # 加载数据
         config = load_json(args.config)
-        metadata = load_json(args.metadata)
-        extracted_data = load_json(args.extracted_data)
+        report_data = load_json(args.report)
         
-        operations = generate_operations(config, metadata, extracted_data)
+        # 生成操作队列
+        operations = generate_operations(config, report_data)
+        
+        # 保存结果
         with open(args.output, 'w', encoding='utf-8') as f:
             json.dump(operations, f, indent=2, ensure_ascii=False)
         
@@ -218,7 +302,10 @@ def main():
         return 1
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return 1
+
 
 if __name__ == '__main__':
     sys.exit(main())
