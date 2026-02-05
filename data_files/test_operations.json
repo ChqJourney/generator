@@ -1,53 +1,50 @@
 {
-  "template_path": "report_templates/report_template1.docx",
-  "output_dir": "output/",
-  "field_mappings": [
+  "operations": [
     {
-      "template_field": "report_no",
-      "source": "metadata",
-      "source_field": "report_no",
-      "type": "text"
+      "type": "text",
+      "placeholder": "report_no",
+      "value": "RPT-2024-001",
+      "location": "body"
     },
     {
-      "template_field": "issue_date",
-      "source": "metadata",
-      "source_field": "issue_date",
-      "type": "text"
+      "type": "text",
+      "placeholder": "issue_date",
+      "value": "2024-03-15",
+      "location": "body"
     },
     {
-      "template_field": "applicant_name",
-      "source": "metadata",
-      "source_field": "applicant_name",
-      "type": "text"
+      "type": "text",
+      "placeholder": "applicant_name",
+      "value": "Test Company Ltd.",
+      "location": "body"
     },
     {
-      "template_field": "applicant_address",
-      "source": "metadata",
-      "source_field": "applicant_address",
-      "type": "text"
+      "type": "text",
+      "placeholder": "applicant_address",
+      "value": "123 Test Street, Test City, 12345",
+      "location": "body"
     },
     {
-      "template_field": "model_identifier",
-      "source": "extracted_data",
-      "source_field": "model_identifier",
-      "type": "text"
+      "type": "text",
+      "placeholder": "model_identifier",
+      "value": "LED-HB-100W-5K",
+      "location": "body"
     },
     {
-      "template_field": "rated_wattage",
-      "source": "extracted_data",
-      "source_field": "rated_wattage",
-      "type": "text"
+      "type": "text",
+      "placeholder": "rated_wattage",
+      "value": "100W",
+      "location": "body"
     },
-
     {
-      "template_field": "photometric_data",
-      "source": "extracted_data",
-      "source_field": "photometric_data",
-      "table_template_path": "report_templates/tables/photometric_table_template.docx",
       "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
-      "skip_columns": [1],
+      "placeholder": "photometric_data",
+      "table_template_path": "report_templates/tables/photometric_table_template.docx",
+      "table_data": [
+        ["1", "SEQ01", "0.455", "100.2", "0.95", "12500", "124.8", "5000", "85", "12", "0.3456", "0.3567", "3.2", "0.52", "0.41", "0.1"],
+        ["2", "SEQ02", "0.458", "101.5", "0.94", "12650", "124.6", "5020", "84", "11", "0.3445", "0.3556", "3.1", "0.51", "0.40", "0.1"],
+        ["3", "SEQ03", "0.452", "99.8", "0.96", "12400", "124.2", "4980", "86", "13", "0.3467", "0.3578", "3.3", "0.53", "0.42", "0.1"]
+      ],
       "transformations": [
         {
           "type": "skip_columns",
@@ -56,10 +53,8 @@
         {
           "type": "custom_transform",
           "transformer": "photometric_data_transformer",
-          "calculate_columns": [5],
-          "formulas": {
-            "5": "E{row}/C{row}"
-          },
+          "calculate_columns": [],
+          "formulas": {},
           "average_columns": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
           "format_rules": {
             "2": [{"condition": "x < 100", "format": "{:.2f}"}],
@@ -72,17 +67,16 @@
             "5": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
           }
         }
-      ]
-    },
-
-    {
-      "template_field": "beam_table",
-      "source": "extracted_data",
-      "source_field": "beam_data",
-      "table_template_path": "report_templates/tables/beam_table_template.docx",
-      "type": "table",
+      ],
       "row_strategy": "fixed_rows",
-      "header_rows": 1,
+      "header_rows": 2,
+      "skip_columns": [1]
+    },
+    {
+      "type": "table",
+      "placeholder": "beam_table",
+      "table_template_path": "report_templates/tables/beam_table_template.docx",
+      "table_data": [],
       "transformations": [
         {
           "type": "custom_transform",
@@ -92,24 +86,22 @@
           "beam_angle_format": "{:.1f}",
           "peak_intensity_format": "{:.0f}"
         }
-      ]
+      ],
+      "row_strategy": "fixed_rows",
+      "header_rows": 1
     },
-
     {
-      "template_field": "eei_table",
-      "source": "extracted_data",
-      "source_field": "eei_data",
-      "table_template_path": "report_templates/tables/eei_table_template.docx",
       "type": "table",
-      "row_strategy": "dynamic_rows",
-      "header_rows": 1,
+      "placeholder": "eei_table",
+      "table_template_path": "report_templates/tables/eei_table_template.docx",
+      "table_data": [],
       "transformations": [
         {
           "type": "custom_transform",
           "transformer": "eei_table_transformer",
           "model_fields": ["model_identifier"],
           "photometric_data_ref": "photometric_data",
-          "efficacy_column": 5,
+          "efficacy_column": 6,
           "eei_thresholds": {
             "A++": 130,
             "A+": 110,
@@ -123,17 +115,15 @@
             "1": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
           }
         }
-      ]
-    },
-
-    {
-      "template_field": "zone_table",
-      "source": "extracted_data",
-      "source_field": "zone_data",
-      "table_template_path": "report_templates/tables/zone_table_template.docx",
-      "type": "table",
+      ],
       "row_strategy": "dynamic_rows",
-      "header_rows": 1,
+      "header_rows": 1
+    },
+    {
+      "type": "table",
+      "placeholder": "zone_table",
+      "table_template_path": "report_templates/tables/zone_table_template.docx",
+      "table_data": [],
       "transformations": [
         {
           "type": "custom_transform",
@@ -143,39 +133,41 @@
           "min_angle": 30,
           "format": "{:.1f}"
         }
-      ]
+      ],
+      "row_strategy": "dynamic_rows",
+      "header_rows": 1
     },
-
     {
-      "template_field": "life_table",
-      "source": "extracted_data",
-      "source_field": "life_test_data",
-      "table_template_path": "report_templates/tables/life_test_table_template.docx",
       "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
+      "placeholder": "life_table",
+      "table_template_path": "report_templates/tables/life_test_table_template.docx",
+      "table_data": [
+        ["1", "1000", "98.5", "0.15"],
+        ["2", "2000", "97.2", "0.28"],
+        ["3", "3000", "95.8", "0.42"]
+      ],
       "transformations": [
         {
           "type": "custom_transform",
           "transformer": "life_table_transformer",
           "calculate_columns": [],
           "formulas": {},
-          "average_columns": [1, 2, 3, 4],
+          "average_columns": [1, 2, 3],
           "format_rules": {
             "1": [{"condition": "x >= 1000", "format": "{:.0f}"}, {"condition": "x < 1000", "format": "{:.1f}"}]
           }
         }
-      ]
+      ],
+      "row_strategy": "fixed_rows",
+      "header_rows": 2
     },
-
     {
-      "template_field": "images",
-      "source": "extracted_data",
-      "source_field": "images",
       "type": "image",
+      "placeholder": "images",
+      "image_paths": ["data_files/1.jpg", "data_files/2.jpg"],
       "width": 4.0,
-      "alignment": "center"
+      "alignment": "center",
+      "location": "body"
     }
-  ],
-  "merge_strategy": "prefer_first"
+  ]
 }

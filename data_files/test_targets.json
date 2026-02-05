@@ -1,0 +1,52 @@
+{
+  "targets": [
+    {
+      "name": "issue_date",
+      "value": "2024-03-15"
+    },
+    {
+      "name": "applicant_name",
+      "value": "Test Company Ltd."
+    },
+    {
+      "name": "model_identifier",
+      "value": "LED-HB-100W-5K"
+    },
+    {
+      "name": "rated_wattage",
+      "value": "100W"
+    },
+    {
+      "name": "beam_angle_0",
+      "value": "120.5"
+    },
+    {
+      "name": "peak_intensity_0",
+      "value": "5000"
+    },
+    {
+      "name": "zone_30",
+      "value": "4500"
+    },
+    {
+      "name": "zone_60",
+      "value": "3800"
+    },
+    {
+      "name": "zone_90",
+      "value": "2500"
+    },
+    {
+      "name": "zone_120",
+      "value": "1200"
+    },
+    {
+      "name": "zone_150",
+      "value": "500"
+    },
+    {
+      "name": "zone_180",
+      "value": "200"
+    }
+  ]
+}

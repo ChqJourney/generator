@@ -8,7 +8,7 @@ import os
 from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from table_processor import EnhancedTableInserter, TableDataTransformer
+from table_processor import TableDataTransformer
 from utils.table_utils import set_cell_value
 
 class DocxTemplateError(Exception):

@@ -1,37 +1,166 @@
 """
 使用processor.py处理Word模板
+通过calculated_report.json获取所有数据
 """
 import sys
 import json
 from pathlib import Path
 from docx.shared import Inches
 
-from processor import DocxTemplateError
-
 sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
 
 try:
-    from processor import DocxTemplateProcessor
+    from processor import DocxTemplateProcessor, DocxTemplateError
 except ImportError:
     print("Error: processor.py not found. Please ensure it is in the scripts directory.", file=sys.stderr)
     sys.exit(1)
 
+
+def load_calculated_report(report_path: Path) -> dict:
+    """
+    加载calculated_report.json文件
+    
+    返回结构:
+    {
+        "metadata": {...},
+        "extracted_data": {...},
+        "calculated_data": {...}
+    }
+    """
+    with open(report_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    # 确保基本结构存在
+    if 'metadata' not in data:
+        data['metadata'] = {}
+    if 'extracted_data' not in data:
+        data['extracted_data'] = {}
+    if 'calculated_data' not in data:
+        data['calculated_data'] = {}
+    
+    return data
+
+
+def get_nested_value(data: dict, path: str, default=None):
+    """
+    获取嵌套字典的值，支持点号路径如 'metadata.report_no'
+    """
+    keys = path.split('.')
+    value = data
+    for key in keys:
+        if isinstance(value, dict) and key in value:
+            value = value[key]
+        else:
+            return default
+    return value
+
+
+def prepare_metadata(calculated_report: dict) -> dict:
+    """
+    准备metadata数据（用于表格转换器）
+    
+    将calculated_report扁平化，便于转换器访问
+    """
+    metadata = calculated_report.get('metadata', {}).copy()
+    
+    # 添加extracted_data和calculated_data引用，便于转换器访问
+    metadata['extracted_data'] = calculated_report.get('extracted_data', {})
+    metadata['calculated_data'] = calculated_report.get('calculated_data', {})
+    
+    return metadata
+
+
+def prepare_targets(calculated_report: dict) -> dict:
+    """
+    准备targets数据（用于表格转换器）
+    
+    将extracted_data中的字段转换为targets格式
+    """
+    targets = []
+    
+    extracted_data = calculated_report.get('extracted_data', {})
+    for key, value in extracted_data.items():
+        if not isinstance(value, (list, dict)):  # 只添加简单值
+            targets.append({
+                "name": key,
+                "value": value
+            })
+    
+    # 也添加metadata中的字段
+    metadata = calculated_report.get('metadata', {})
+    for key, value in metadata.items():
+        if not isinstance(value, (list, dict)):
+            targets.append({
+                "name": key,
+                "value": value
+            })
+    
+    return {"targets": targets}
+
+
+def resolve_text_value(value_ref: str, calculated_report: dict) -> str:
+    """
+    解析文本值引用
+    
+    支持格式:
+    - 直接值: "some text"
+    - 路径引用: "metadata.report_no"
+    - 路径引用: "extracted_data.model_identifier"
+    - 路径引用: "calculated_data.energy_class"
+    """
+    # 尝试作为路径解析
+    value = get_nested_value(calculated_report, value_ref)
+    if value is not None:
+        return str(value)
+    
+    # 如果找不到，返回原值
+    return value_ref
+
+
+def resolve_table_data(data_ref: str, calculated_report: dict) -> list:
+    """
+    解析表格数据源
+    
+    支持格式:
+    - 直接数据: 传入列表
+    - 路径引用: "extracted_data.photometric_data"
+    """
+    if isinstance(data_ref, list):
+        return data_ref
+    
+    value = get_nested_value(calculated_report, data_ref)
+    if isinstance(value, list):
+        return value
+    
+    return []
+
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='Process Word template using processor.py')
+    parser = argparse.ArgumentParser(
+        description='Process Word template using calculated report data',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python process_template.py 
+    --template report_templates/template.docx 
+    --operations config/operations.json 
+    --calculated-report output/calculated_report.json 
+    --output output/final_report.docx
+        """
+    )
     parser.add_argument('--template', required=True, help='Path to Word template file')
     parser.add_argument('--operations', required=True, help='Path to operations.json')
-    parser.add_argument('--metadata', required=True, help='Path to metadata.json')
-    parser.add_argument('--targets', required=True, help='Path to targets.json')
+    parser.add_argument('--calculated-report', required=True, 
+                        help='Path to calculated_report.json (contains metadata, extracted_data, calculated_data)')
     parser.add_argument('--output', required=True, help='Path to output file')
     args = parser.parse_args()
     
     try:
         template_path = Path(args.template)
         operations_path = Path(args.operations)
+        report_path = Path(args.calculated_report)
         output_path = Path(args.output)
-        metadata_path = Path(args.metadata)
-        targets_path = Path(args.targets)
 
         if not template_path.exists():
             print(f"Error: Template file not found: {template_path}", file=sys.stderr)
@@ -41,44 +170,47 @@ def main():
             print(f"Error: Operations file not found: {operations_path}", file=sys.stderr)
             return 1
         
-        if not metadata_path.exists():
-            print(f"Error: Metadata file not found: {metadata_path}", file=sys.stderr)
-            return 1
-        if not targets_path.exists():
-            print(f"Error: Targets file not found: {targets_path}", file=sys.stderr)
+        if not report_path.exists():
+            print(f"Error: Calculated report file not found: {report_path}", file=sys.stderr)
             return 1
         
+        # 加载数据
         with open(operations_path, 'r', encoding='utf-8') as f:
             operations_data = json.load(f)
         
-        with open(metadata_path, 'r', encoding='utf-8') as f:
-            metadata_data = json.load(f)
-        with open(targets_path, 'r', encoding='utf-8') as f:
-            targets_data = json.load(f)
-
+        calculated_report = load_calculated_report(report_path)
+        metadata = prepare_metadata(calculated_report)
+        targets_data = prepare_targets(calculated_report)
+        
+        print(f"Loaded calculated report: {report_path}", file=sys.stderr)
+        print(f"  Metadata fields: {len(calculated_report.get('metadata', {}))}", file=sys.stderr)
+        print(f"  Extracted data fields: {len(calculated_report.get('extracted_data', {}))}", file=sys.stderr)
+        print(f"  Calculated data fields: {len(calculated_report.get('calculated_data', {}))}", file=sys.stderr)
+        
         processor = DocxTemplateProcessor(str(template_path), str(output_path))
         
         op_count = 0
         for op in operations_data.get('operations', []):
-            if op['type'] == 'text':
-                processor.add_text(
-                    op['placeholder'],
-                    op['value'],
-                    op.get('location', 'body')
-                )
+            op_type = op.get('type')
+            
+            if op_type == 'text':
+                placeholder = op['placeholder']
+                # 支持直接值或路径引用
+                value_ref = op.get('value', op.get('source_field', ''))
+                value = resolve_text_value(value_ref, calculated_report)
+                location = op.get('location', 'body')
+                
+                processor.add_text(placeholder, value, location)
                 op_count += 1
             
-            elif op['type'] == 'image':
+            elif op_type == 'image':
                 width = op.get('width')
                 height = op.get('height')
                 
-                if width is not None:
-                    if isinstance(width, (int, float)):
-                        width = Inches(width)
-                
-                if height is not None:
-                    if isinstance(height, (int, float)):
-                        height = Inches(height)
+                if width is not None and isinstance(width, (int, float)):
+                    width = Inches(width)
+                if height is not None and isinstance(height, (int, float)):
+                    height = Inches(height)
                 
                 processor.add_image(
                     op['placeholder'],
@@ -90,36 +222,51 @@ def main():
                 )
                 op_count += 1
             
-            elif op['type'] == 'table':
+            elif op_type == 'table':
+                placeholder = op['placeholder']
+                table_template_path = op['table_template_path']
+                
+                # 解析表格数据
+                raw_data = op.get('table_data', [])
+                if isinstance(raw_data, str):
+                    # 如果是字符串路径，从calculated_report解析
+                    raw_data = resolve_table_data(raw_data, calculated_report)
+                
+                transformations = op.get('transformations', [])
+                row_strategy = op.get('row_strategy', 'fixed_rows')
+                skip_columns = op.get('skip_columns')
+                header_rows = op.get('header_rows', 1)
+                
                 processor.add_table(
-                    op['placeholder'],
-                    op['table_template_path'],
-                    op.get('table_data'),
-                    op.get('transformations'),
-                    metadata_data,
+                    placeholder,
+                    table_template_path,
+                    raw_data,
+                    transformations,
+                    metadata,
                     targets_data,
-                    op.get('row_strategy', 'fixed_rows'),
-                    op.get('skip_columns'),
-                    op.get('header_rows', 1)
+                    row_strategy,
+                    skip_columns,
+                    header_rows
                 )
                 op_count += 1
         
-        print(f"Executing {op_count} operations...", file=sys.stderr)
+        print(f"\nExecuting {op_count} operations...", file=sys.stderr)
         result = processor.process()
         
-        print(f"Report generated successfully: {result}")
-        # auto open the output file in windows
+        print(f"\nReport generated successfully: {result}", file=sys.stderr)
+        
+        # Auto open the output file in Windows
         if sys.platform == "win32":
             import os
             os.startfile(output_path)
-
+        
         return 0
     
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}", file=sys.stderr)
         return 1
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in operations file - {e}", file=sys.stderr)
+        print(f"Error: Invalid JSON - {e}", file=sys.stderr)
         return 1
     except DocxTemplateError as e:
         print(f"DocxTemplateError: {e}", file=sys.stderr)
@@ -129,6 +276,7 @@ def main():
         import traceback
         traceback.print_exc()
         return 1
+
 
 if __name__ == '__main__':
     sys.exit(main())

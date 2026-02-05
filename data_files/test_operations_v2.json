@@ -1,53 +1,52 @@
 {
-  "template_path": "report_templates/report_template1.docx",
-  "output_dir": "output/",
-  "field_mappings": [
+  "operations": [
     {
-      "template_field": "report_no",
-      "source": "metadata",
-      "source_field": "report_no",
-      "type": "text"
+      "type": "text",
+      "placeholder": "report_no",
+      "value": "metadata.report_no",
+      "location": "body"
     },
     {
-      "template_field": "issue_date",
-      "source": "metadata",
-      "source_field": "issue_date",
-      "type": "text"
+      "type": "text",
+      "placeholder": "issue_date",
+      "value": "metadata.issue_date",
+      "location": "body"
     },
     {
-      "template_field": "applicant_name",
-      "source": "metadata",
-      "source_field": "applicant_name",
-      "type": "text"
+      "type": "text",
+      "placeholder": "applicant_name",
+      "value": "metadata.applicant_name",
+      "location": "body"
     },
     {
-      "template_field": "applicant_address",
-      "source": "metadata",
-      "source_field": "applicant_address",
-      "type": "text"
+      "type": "text",
+      "placeholder": "applicant_address",
+      "value": "metadata.applicant_address",
+      "location": "body"
     },
     {
-      "template_field": "model_identifier",
-      "source": "extracted_data",
-      "source_field": "model_identifier",
-      "type": "text"
+      "type": "text",
+      "placeholder": "model_identifier",
+      "value": "extracted_data.model_identifier",
+      "location": "body"
     },
     {
-      "template_field": "rated_wattage",
-      "source": "extracted_data",
-      "source_field": "rated_wattage",
-      "type": "text"
+      "type": "text",
+      "placeholder": "rated_wattage",
+      "value": "extracted_data.rated_wattage",
+      "location": "body"
     },
-
     {
-      "template_field": "photometric_data",
-      "source": "extracted_data",
-      "source_field": "photometric_data",
-      "table_template_path": "report_templates/tables/photometric_table_template.docx",
+      "type": "text",
+      "placeholder": "energy_class_rating",
+      "value": "calculated_data.energy_class_rating",
+      "location": "body"
+    },
+    {
       "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
-      "skip_columns": [1],
+      "placeholder": "photometric_data",
+      "table_template_path": "report_templates/tables/photometric_table_template.docx",
+      "table_data": "extracted_data.photometric_data",
       "transformations": [
         {
           "type": "skip_columns",
@@ -56,10 +55,8 @@
         {
           "type": "custom_transform",
           "transformer": "photometric_data_transformer",
-          "calculate_columns": [5],
-          "formulas": {
-            "5": "E{row}/C{row}"
-          },
+          "calculate_columns": [],
+          "formulas": {},
           "average_columns": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
           "format_rules": {
             "2": [{"condition": "x < 100", "format": "{:.2f}"}],
@@ -72,17 +69,16 @@
             "5": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
           }
         }
-      ]
-    },
-
-    {
-      "template_field": "beam_table",
-      "source": "extracted_data",
-      "source_field": "beam_data",
-      "table_template_path": "report_templates/tables/beam_table_template.docx",
-      "type": "table",
+      ],
       "row_strategy": "fixed_rows",
-      "header_rows": 1,
+      "header_rows": 2,
+      "skip_columns": [1]
+    },
+    {
+      "type": "table",
+      "placeholder": "beam_table",
+      "table_template_path": "report_templates/tables/beam_table_template.docx",
+      "table_data": "extracted_data.beam_data",
       "transformations": [
         {
           "type": "custom_transform",
@@ -92,24 +88,22 @@
           "beam_angle_format": "{:.1f}",
           "peak_intensity_format": "{:.0f}"
         }
-      ]
+      ],
+      "row_strategy": "fixed_rows",
+      "header_rows": 1
     },
-
     {
-      "template_field": "eei_table",
-      "source": "extracted_data",
-      "source_field": "eei_data",
-      "table_template_path": "report_templates/tables/eei_table_template.docx",
       "type": "table",
-      "row_strategy": "dynamic_rows",
-      "header_rows": 1,
+      "placeholder": "eei_table",
+      "table_template_path": "report_templates/tables/eei_table_template.docx",
+      "table_data": "extracted_data.eei_data",
       "transformations": [
         {
           "type": "custom_transform",
           "transformer": "eei_table_transformer",
           "model_fields": ["model_identifier"],
           "photometric_data_ref": "photometric_data",
-          "efficacy_column": 5,
+          "efficacy_column": 6,
           "eei_thresholds": {
             "A++": 130,
             "A+": 110,
@@ -123,17 +117,15 @@
             "1": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
           }
         }
-      ]
-    },
-
-    {
-      "template_field": "zone_table",
-      "source": "extracted_data",
-      "source_field": "zone_data",
-      "table_template_path": "report_templates/tables/zone_table_template.docx",
-      "type": "table",
+      ],
       "row_strategy": "dynamic_rows",
-      "header_rows": 1,
+      "header_rows": 1
+    },
+    {
+      "type": "table",
+      "placeholder": "zone_table",
+      "table_template_path": "report_templates/tables/zone_table_template.docx",
+      "table_data": "extracted_data.zone_data",
       "transformations": [
         {
           "type": "custom_transform",
@@ -143,39 +135,37 @@
           "min_angle": 30,
           "format": "{:.1f}"
         }
-      ]
+      ],
+      "row_strategy": "dynamic_rows",
+      "header_rows": 1
     },
-
     {
-      "template_field": "life_table",
-      "source": "extracted_data",
-      "source_field": "life_test_data",
-      "table_template_path": "report_templates/tables/life_test_table_template.docx",
       "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
+      "placeholder": "life_table",
+      "table_template_path": "report_templates/tables/life_test_table_template.docx",
+      "table_data": "extracted_data.life_test_data",
       "transformations": [
         {
           "type": "custom_transform",
           "transformer": "life_table_transformer",
           "calculate_columns": [],
           "formulas": {},
-          "average_columns": [1, 2, 3, 4],
+          "average_columns": [1, 2, 3],
           "format_rules": {
             "1": [{"condition": "x >= 1000", "format": "{:.0f}"}, {"condition": "x < 1000", "format": "{:.1f}"}]
           }
         }
-      ]
+      ],
+      "row_strategy": "fixed_rows",
+      "header_rows": 2
     },
-
     {
-      "template_field": "images",
-      "source": "extracted_data",
-      "source_field": "images",
       "type": "image",
+      "placeholder": "images",
+      "image_paths": ["data_files/1.jpg", "data_files/2.jpg"],
       "width": 4.0,
-      "alignment": "center"
+      "alignment": "center",
+      "location": "body"
     }
-  ],
-  "merge_strategy": "prefer_first"
+  ]
 }

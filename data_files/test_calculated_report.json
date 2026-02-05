@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "report_no": "RPT-2024-001",
+    "issue_date": "2024-03-15",
+    "applicant_name": "Test Company Ltd.",
+    "applicant_address": "123 Test Street, Test City, 12345",
+    "product_name": "LED Highbay Module",
+    "manufacturer": "Test Lighting Co.",
+    "test_location": "Lab A",
+    "sample_received_date": "2024-03-01",
+    "test_period": "2024-03-01 to 2024-03-10"
+  },
+  "extracted_data": {
+    "model_identifier": "LED-HB-100W-5K",
+    "rated_wattage": "100W",
+    "beam_angle_0": "120.5",
+    "peak_intensity_0": "5000",
+    "zone_30": "4500",
+    "zone_60": "3800",
+    "zone_90": "2500",
+    "zone_120": "1200",
+    "zone_150": "500",
+    "zone_180": "200",
+    "images": ["data_files/1.jpg", "data_files/2.jpg"],
+    "photometric_data": [
+      ["1", "SEQ01", "0.455", "100.2", "0.95", "12500", "124.8", "5000", "85", "12", "0.3456", "0.3567", "3.2", "0.52", "0.41", "0.1"],
+      ["2", "SEQ02", "0.458", "101.5", "0.94", "12650", "124.6", "5020", "84", "11", "0.3445", "0.3556", "3.1", "0.51", "0.40", "0.1"],
+      ["3", "SEQ03", "0.452", "99.8", "0.96", "12400", "124.2", "4980", "86", "13", "0.3467", "0.3578", "3.3", "0.53", "0.42", "0.1"]
+    ],
+    "life_test_data": [
+      ["1", "1000", "98.5", "0.15"],
+      ["2", "2000", "97.2", "0.28"],
+      ["3", "3000", "95.8", "0.42"]
+    ],
+    "beam_data": {},
+    "eei_data": {},
+    "zone_data": {}
+  },
+  "calculated_data": {
+    "energy_class_rating": "A+",
+    "energy_efficacy": "124.75",
+    "photometric_avg_efficacy": "124.53",
+    "photometric_total_flux_avg": "12516.67",
+    "photometric_power_avg": "100.50"
+  }
+}

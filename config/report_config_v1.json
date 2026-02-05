@@ -1,0 +1,269 @@
+{
+  "template_path": "report_templates/report_template1.docx",
+  "output_dir": "output/",
+  "field_mappings": [
+    {
+      "template_field": "applicant_name",
+      "source_field": "metadata.applicant_name",
+      "type": "text",
+      "inferred_source": "metadata",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "{{applicant_name}}"
+    },
+    {
+      "template_field": "rated_voltage",
+      "source_field": "extracted_data.rated_voltage",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "LIGHT SOURCE: {{rated_voltage}} {{rated_wattage}} {{cct}}"
+    },
+    {
+      "template_field": "rated_wattage",
+      "source_field": "extracted_data.rated_wattage",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "LIGHT SOURCE: {{rated_voltage}} {{rated_wattage}} {{cct}}"
+    },
+    {
+      "template_field": "cct",
+      "source_field": "extracted_data.cct",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "LIGHT SOURCE: {{rated_voltage}} {{rated_wattage}} {{cct}}"
+    },
+    {
+      "template_field": "report_no",
+      "source_field": "metadata.report_no",
+      "type": "text",
+      "inferred_source": "metadata",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "REPORT NUMBER\t\n{{report_no}}"
+    },
+    {
+      "template_field": "applicant_address",
+      "source_field": "metadata.applicant_address",
+      "type": "text",
+      "inferred_source": "metadata",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{applicant_address}}"
+    },
+    {
+      "template_field": "model_identifier",
+      "source_field": "extracted_data.model_identifier",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{model_identifier}}"
+    },
+    {
+      "template_field": "ratings",
+      "source_field": "calculated_data.ratings",
+      "type": "text",
+      "inferred_source": "calculated_data",
+      "is_calculated": true,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{ratings}}"
+    },
+    {
+      "template_field": "rated_effcacy",
+      "source_field": "extracted_data.rated_effcacy",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{rated_effcacy}}"
+    },
+    {
+      "template_field": "rated_energy_class",
+      "source_field": "calculated_data.rated_energy_class",
+      "type": "text",
+      "inferred_source": "calculated_data",
+      "is_calculated": true,
+      "confidence": "medium",
+      "suggested_function": "calculate_energy_class_rating",
+      "suggested_args": [
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
+      ],
+      "location": "body",
+      "context": "[表格中] {{rated_energy_class}}",
+      "function": "calculate_energy_class_rating",
+      "args": [
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
+      ]
+    },
+    {
+      "template_field": "lamp_source_model",
+      "source_field": "extracted_data.lamp_source_model",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{lamp_source_model}}"
+    },
+    {
+      "template_field": "controlgear_model",
+      "source_field": "extracted_data.controlgear_model",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{controlgear_model}}"
+    },
+    {
+      "template_field": "intend_use",
+      "source_field": "extracted_data.intend_use",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{intend_use}}"
+    },
+    {
+      "template_field": "useful_luminous_flux",
+      "source_field": "extracted_data.useful_luminous_flux",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{useful_luminous_flux}}"
+    },
+    {
+      "template_field": "rated_power",
+      "source_field": "extracted_data.rated_power",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{rated_power}}"
+    },
+    {
+      "template_field": "ponmax",
+      "source_field": "extracted_data.ponmax",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{ponmax}}"
+    },
+    {
+      "template_field": "beam_angle",
+      "source_field": "extracted_data.beam_angle",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{beam_angle}}°"
+    },
+    {
+      "template_field": "peak_intensity",
+      "source_field": "extracted_data.peak_intensity",
+      "type": "text",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "location": "body",
+      "context": "[表格中] {{peak_intensity}}cd"
+    },
+    {
+      "template_field": "Check1",
+      "source_field": "metadata.Check1",
+      "type": "checkbox",
+      "inferred_source": "metadata",
+      "is_calculated": false,
+      "context": "Containing product   light sources    separate control gears",
+      "confidence": "high"
+    },
+    {
+      "template_field": "equipment_list",
+      "source_field": "extracted_data.equipment_list",
+      "type": "table",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "row_strategy": "fixed_rows",
+      "header_rows": 1,
+      "table_template_path": "report_templates/table_template.docx",
+      "location": "body",
+      "context": "{{equipment_list}}"
+    },
+    {
+      "template_field": "photometric_data",
+      "source_field": "extracted_data.photometric_data",
+      "type": "table",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "row_strategy": "fixed_rows",
+      "header_rows": 1,
+      "table_template_path": "report_templates/table_template.docx",
+      "location": "body",
+      "context": "{{photometric_data}}"
+    },
+    {
+      "template_field": "life_test_data",
+      "source_field": "extracted_data.life_test_data",
+      "type": "table",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "row_strategy": "fixed_rows",
+      "header_rows": 1,
+      "table_template_path": "report_templates/table_template.docx",
+      "location": "body",
+      "context": "{{life_test_data}}"
+    },
+    {
+      "template_field": "light_distribution_image",
+      "source_field": "extracted_data.light_distribution_image",
+      "type": "image",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "width": 4.0,
+      "alignment": "center",
+      "location": "body",
+      "context": "{{light_distribution_image}}"
+    },
+    {
+      "template_field": "images",
+      "source_field": "extracted_data.images",
+      "type": "image",
+      "inferred_source": "extracted_data",
+      "is_calculated": false,
+      "confidence": "medium",
+      "width": 4.0,
+      "alignment": "center",
+      "location": "body",
+      "context": "{{images}}"
+    }
+  ],
+  "merge_strategy": "prefer_first"
+}

@@ -1,6 +1,6 @@
 """
 表格数据转换器
-支持：跳过列、添加列、计算列、格式化列、列重排序、行过滤
+支持：跳过列、添加列、计算列、格式化列、列重排序、行过滤、自定义转换
 """
 
 import sys
@@ -11,6 +11,9 @@ import math
 # 导入安全评估工具
 sys.path.insert(0, str(__file__).rsplit('\\', 2)[0])
 from utils.safe_eval import safe_eval_formula, safe_eval_lambda, SafeEvalError
+
+# 导入专用转换器
+from .custom_transformers import CustomTransformerRegistry
 
 
 class TableDataTransformer:
@@ -93,49 +96,6 @@ class TableDataTransformer:
         result.append(agg_row)
         return result
     
-    def _apply_single_aggregation(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
-        """执行单个聚合操作"""
-        result = [row[:] for row in data]
-        
-        if not result:
-            return result
-        
-        column = config.get('column')
-        if column is None:
-            return result
-        
-        operation = config.get('operation')
-        decimal = config.get('decimal')
-        function = config.get('function', None)
-        
-        values = [float(row[column]) for row in result if column < len(row) and self._is_numeric(row[column])]
-        
-        if not values:
-            return result
-        
-        if operation == 'average':
-            agg_value = statistics.mean(values)
-        elif operation == 'sum':
-            agg_value = sum(values)
-        elif operation == 'max':
-            agg_value = max(values)
-        elif operation == 'min':
-            agg_value = min(values)
-        else:
-            return result
-        
-        agg_row = [''] * len(result[0])
-        agg_row[0] = 'Average'
-        
-        if function:
-            agg_row[column] = self._apply_function_value(agg_value, function)
-        else:
-            agg_row[column] = self._format_number(agg_value, decimal)
-        
-        result.append(agg_row)
-        print(f'Added aggregation row for column {column}: {agg_row}')
-        return result
-    
     def _execute_transform(self, data: List[List[Any]], transform: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
         """执行单个转换操作"""
         transform_type = transform.get('type')
@@ -152,9 +112,48 @@ class TableDataTransformer:
             return self._apply_reorder(data, transform)
         elif transform_type == 'filter_rows':
             return self._apply_filter_rows(data, transform)
+        elif transform_type == 'custom_transform':
+            return self._apply_custom_transform(data, transform, metadata)
         
         return data
 
+    def _apply_custom_transform(self, data: List[List[Any]], config: Dict, 
+                                   metadata: Optional[Dict] = None) -> List[List[Any]]:
+        """
+        应用专用自定义转换器
+        
+        配置示例:
+        {
+            "type": "custom_transform",
+            "transformer": "photometric_data_transformer",
+            "calculate_columns": [...],
+            "average_columns": [...],
+            ...
+        }
+        """
+        transformer_name = config.get('transformer')
+        if not transformer_name:
+            return data
+        
+        try:
+            # 从 metadata 或 targets_data 中提取 extracted_data
+            extracted_data = None
+            if metadata and 'extracted_data' in metadata:
+                extracted_data = metadata['extracted_data']
+            elif metadata and 'fields' in metadata:
+                # 转换 fields 列表为字典
+                extracted_data = {}
+                for field in metadata.get('fields', []):
+                    if 'name' in field and 'value' in field:
+                        extracted_data[field['name']] = field['value']
+            
+            return CustomTransformerRegistry.transform(
+                transformer_name, data, config, extracted_data
+            )
+        except Exception as e:
+            print(f"Custom transform error ({transformer_name}): {e}")
+            return data
+    
     def _apply_skip_columns(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
         """
         跳过指定列
@@ -290,19 +289,6 @@ class TableDataTransformer:
         except Exception as e:
             print(f"Failed to format value {value} with function: {e}")
             return str(value)
-    
-    def _find_or_add_avg_row(self, data: List[List[Any]]) -> int:
-        """查找或添加平均行"""
-        for idx, row in enumerate(data):
-            if len([cell for cell in row if cell is not None and 'Avg' in str(cell)]) > 0:
-                return idx
-        
-        # 没找到，添加新行
-        if data and data[0]:
-            avg_row = [''] * len(data[0])
-            data.append(avg_row)
-            return len(data) - 1
-        return 0
     
     def _apply_format_column(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
         """
