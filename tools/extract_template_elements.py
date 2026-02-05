@@ -24,7 +24,7 @@ def extract_placeholders(doc: Document, pattern_str: str = None) -> Dict[str, Li
     
     返回按位置分类的placeholder列表:
     {
-        "body": [{"name": "xxx", "context": "所在段落文本"}],
+        "body": [{"name": "xxx", "section_no": 1}],
         "header": [...],
         "footer": [...]
     }
@@ -46,23 +46,23 @@ def extract_placeholders(doc: Document, pattern_str: str = None) -> Dict[str, Li
     header_names = set()
     footer_names = set()
     
-    def add_placeholder(location: str, name: str, context: str):
+    def add_placeholder(location: str, name: str, section_no: int = 1):
         """添加placeholder到指定位置，按位置去重"""
         if location == "body" and name not in body_names:
-            placeholders["body"].append({"name": name, "context": context})
+            placeholders["body"].append({"name": name, "section_no": section_no})
             body_names.add(name)
         elif location == "header" and name not in header_names:
-            placeholders["header"].append({"name": name, "context": context})
+            placeholders["header"].append({"name": name, "section_no": section_no})
             header_names.add(name)
         elif location == "footer" and name not in footer_names:
-            placeholders["footer"].append({"name": name, "context": context})
+            placeholders["footer"].append({"name": name, "section_no": section_no})
             footer_names.add(name)
     
-    # 提取body中的placeholder
+    # 提取body中的placeholder（属于section 1）
     for para in doc.paragraphs:
         matches = pattern.findall(para.text)
         for match in matches:
-            add_placeholder("body", match, para.text.strip()[:100])
+            add_placeholder("body", match, section_no=1)
     
     # 提取body表格中的placeholder
     for table in doc.tables:
@@ -72,24 +72,17 @@ def extract_placeholders(doc: Document, pattern_str: str = None) -> Dict[str, Li
                 cell_matches = pattern.findall(cell_text)
                 
                 for match in cell_matches:
-                    # 尝试从段落获取更精确的上下文
-                    context = f"[表格单元格] {cell_text.strip()[:80]}"
-                    for para in cell.paragraphs:
-                        para_text = para.text or ""
-                        if match in pattern.findall(para_text):
-                            context = f"[表格中] {para_text.strip()[:80]}"
-                            break
-                    add_placeholder("body", match, context)
+                    add_placeholder("body", match, section_no=1)
     
     # 提取header中的placeholder（包括段落和表格）
-    for section in doc.sections:
+    for section_idx, section in enumerate(doc.sections, 1):
         for header in [section.header, section.first_page_header, section.even_page_header]:
             if header:
                 # 从段落中提取
                 for para in header.paragraphs:
                     matches = pattern.findall(para.text)
                     for match in matches:
-                        add_placeholder("header", match, para.text.strip()[:100])
+                        add_placeholder("header", match, section_no=section_idx)
                 
                 # 从表格中提取
                 for table in header.tables:
@@ -99,23 +92,17 @@ def extract_placeholders(doc: Document, pattern_str: str = None) -> Dict[str, Li
                             cell_matches = pattern.findall(cell_text)
                             
                             for match in cell_matches:
-                                context = f"[header表格单元格] {cell_text.strip()[:80]}"
-                                for para in cell.paragraphs:
-                                    para_text = para.text or ""
-                                    if match in pattern.findall(para_text):
-                                        context = f"[header表格中] {para_text.strip()[:80]}"
-                                        break
-                                add_placeholder("header", match, context)
+                                add_placeholder("header", match, section_no=section_idx)
     
     # 提取footer中的placeholder（包括段落和表格）
-    for section in doc.sections:
+    for section_idx, section in enumerate(doc.sections, 1):
         for footer in [section.footer, section.first_page_footer, section.even_page_footer]:
             if footer:
                 # 从段落中提取
                 for para in footer.paragraphs:
                     matches = pattern.findall(para.text)
                     for match in matches:
-                        add_placeholder("footer", match, para.text.strip()[:100])
+                        add_placeholder("footer", match, section_no=section_idx)
                 
                 # 从表格中提取
                 for table in footer.tables:
@@ -125,13 +112,7 @@ def extract_placeholders(doc: Document, pattern_str: str = None) -> Dict[str, Li
                             cell_matches = pattern.findall(cell_text)
                             
                             for match in cell_matches:
-                                context = f"[footer表格单元格] {cell_text.strip()[:80]}"
-                                for para in cell.paragraphs:
-                                    para_text = para.text or ""
-                                    if match in pattern.findall(para_text):
-                                        context = f"[footer表格中] {para_text.strip()[:80]}"
-                                        break
-                                add_placeholder("footer", match, context)
+                                add_placeholder("footer", match, section_no=section_idx)
     
     return placeholders
 
@@ -141,7 +122,7 @@ def extract_checkboxes(doc: Document) -> List[Dict]:
     从文档中提取所有checkbox的name属性
     
     返回:
-        [{"name": "checkbox_name", "context": "所在段落文本"}]
+        [{"name": "checkbox_name", "section_no": 1}]
     """
     checkboxes = []
     found_names = set()
@@ -161,42 +142,20 @@ def extract_checkboxes(doc: Document) -> List[Dict]:
                 field_name = name_elem.get(w_ns + 'val')
                 
                 if field_name and field_name not in found_names:
-                    # 尝试找到checkbox所在的段落文本作为上下文
-                    context = ""
-                    try:
-                        # 向上遍历找到包含的段落
-                        current = checkbox
-                        for _ in range(10):  # 限制遍历深度
-                            parent = current.getparent()
-                            if parent is None:
-                                break
-                            if parent.tag.endswith('p'):
-                                # 找到段落元素，提取文本
-                                para_text = ""
-                                for t in parent.findall('.//w:t', namespaces=ns):
-                                    if t.text:
-                                        para_text += t.text
-                                context = para_text.strip()[:100]
-                                break
-                            current = parent
-                    except:
-                        pass
-                    
                     checkboxes.append({
                         "name": field_name,
-                        "context": context
+                        "section_no": 1  # checkbox默认归于section 1
                     })
                     found_names.add(field_name)
     
     return checkboxes
 
 
-def smart_infer_field_info(name: str, context: str) -> Dict:
+def smart_infer_field_info(name: str, section_no: int = 1) -> Dict:
     """
     根据placeholder名称智能推断字段类型和数据源
     """
     name_lower = name.lower()
-    context_lower = context.lower()
     
     # 推断类型
     field_type = "text"  # 默认类型
@@ -222,9 +181,6 @@ def smart_infer_field_info(name: str, context: str) -> Dict:
     elif any(kw in name_lower for kw in ['energy', 'efficacy', 'class', 'rating', 'calculate']):
         source_prefix = "calculated_data"
     
-    # 推断是否是计算字段
-    is_calculated = source_prefix == "calculated_data"
-    
     # 推断可能的计算函数
     suggested_function = None
     suggested_args = []
@@ -244,8 +200,7 @@ def smart_infer_field_info(name: str, context: str) -> Dict:
         "source_field": f"{source_prefix}.{name}",
         "type": field_type,
         "inferred_source": source_prefix,
-        "is_calculated": is_calculated,
-        "confidence": "medium"  # 置信度
+        "section_no": section_no
     }
     
     if suggested_function:
@@ -276,10 +231,10 @@ def generate_field_mappings(placeholders: Dict, checkboxes: List) -> List[Dict]:
     for location in ["body", "header", "footer"]:
         for item in placeholders.get(location, []):
             name = item["name"]
+            section_no = item.get("section_no", 1)
             if name not in processed_names:
-                mapping = smart_infer_field_info(name, item["context"])
+                mapping = smart_infer_field_info(name, section_no)
                 mapping["location"] = location
-                mapping["context"] = item["context"]
                 mappings.append(mapping)
                 processed_names.add(name)
             else:
@@ -294,22 +249,20 @@ def generate_field_mappings(placeholders: Dict, checkboxes: List) -> List[Dict]:
     # 处理checkbox（作为特殊类型）
     for cb in checkboxes:
         name = cb["name"]
+        section_no = cb.get("section_no", 1)
         if name not in processed_names:
             mapping = {
                 "template_field": name,
                 "source_field": f"metadata.{name}",
                 "type": "checkbox",
                 "inferred_source": "metadata",
-                "is_calculated": False,
-                "context": cb["context"],
-                "confidence": "high"
+                "section_no": section_no
             }
             mappings.append(mapping)
             processed_names.add(name)
     
-    # 按类型排序：text -> checkbox -> table -> image
-    type_order = {"text": 0, "checkbox": 1, "table": 2, "image": 3}
-    mappings.sort(key=lambda x: type_order.get(x["type"], 99))
+    # 按section_no排序（更直观）
+    mappings.sort(key=lambda x: x.get("section_no", 1))
     
     return mappings
 
@@ -366,12 +319,12 @@ def main():
     print(f"  - Header中的placeholder: {len(placeholders['header'])}")
     if placeholders['header']:
         for ph in placeholders['header']:
-            print(f"      * {ph['name']} - {ph['context'][:50]}")
+            print(f"      * {ph['name']} (section {ph.get('section_no', 1)})")
     
     print(f"  - Footer中的placeholder: {len(placeholders['footer'])}")
     if placeholders['footer']:
         for ph in placeholders['footer']:
-            print(f"      * {ph['name']} - {ph['context'][:50]}")
+            print(f"      * {ph['name']} (section {ph.get('section_no', 1)})")
     
     print(f"  - Checkbox数量: {len(checkboxes)}")
     print(f"  - 总计: {total_placeholders + len(checkboxes)}")
@@ -468,10 +421,8 @@ def main():
     # 列出需要手动确认/修改的字段
     print("\n需要特别关注的字段:")
     for mapping in generate_field_mappings(placeholders, checkboxes):
-        if mapping.get("is_calculated"):
+        if mapping.get("suggested_function"):
             print(f"  [计算字段] {mapping['template_field']} -> {mapping.get('suggested_function', '需要手动指定')}")
-        if mapping.get("confidence") == "medium":
-            print(f"  [需确认] {mapping['template_field']} -> source: {mapping['inferred_source']}")
         if mapping.get("also_in"):
             print(f"  [多位置] {mapping['template_field']} -> 主要位置: {mapping['location']}, 同时存在于: {', '.join(mapping['also_in'])}")
 

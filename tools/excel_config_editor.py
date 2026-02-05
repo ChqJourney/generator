@@ -44,15 +44,14 @@ def export_to_excel(input_json: str, output_excel: str):
     # 定义表头
     headers = [
         "序号",
+        "Section No (节号)",
         "Template Field (占位符)",
         "Type (类型)",
         "Source Prefix (数据源)",
-        "Source Field (完整路径)",
-        "Is Calculated (是否计算)",
+        "Source Field (字段名)",
         "Function (计算函数)",
         "Args (参数)",
         "Location (位置)",
-        "Context (上下文)",
         "Extra Config (额外配置)"
     ]
     
@@ -76,6 +75,9 @@ def export_to_excel(input_json: str, output_excel: str):
             data.get("checkboxes", [])
         )
     
+    # 按section_no排序
+    mappings.sort(key=lambda x: x.get("section_no", 1))
+    
     # 写入数据
     type_colors = {
         "text": "E2EFDA",      # 浅绿
@@ -88,13 +90,13 @@ def export_to_excel(input_json: str, output_excel: str):
         field_type = mapping.get("type", "text")
         fill_color = type_colors.get(field_type, "FFFFFF")
         
-        # 分解source_field
-        source_field = mapping.get("source_field", "")
-        if "." in source_field:
-            source_prefix, field_name = source_field.split(".", 1)
+        # 分解source_field，只取字段名（去掉前缀）
+        source_field_full = mapping.get("source_field", "")
+        if "." in source_field_full:
+            source_prefix, field_name = source_field_full.split(".", 1)
         else:
-            source_prefix = ""
-            field_name = source_field
+            source_prefix = source_field_full
+            field_name = source_field_full
         
         # 准备额外配置
         extra_config = []
@@ -117,15 +119,14 @@ def export_to_excel(input_json: str, output_excel: str):
         
         row_data = [
             row - 1,  # 序号
+            mapping.get("section_no", 1),  # Section No
             mapping.get("template_field", ""),
             field_type,
             source_prefix,
-            source_field,
-            "是" if mapping.get("is_calculated") else "否",
+            field_name,  # 只显示字段名，不含前缀
             mapping.get("function", ""),
             ", ".join(mapping.get("args", [])),
             mapping.get("location", "body"),
-            mapping.get("context", "")[:100],
             "; ".join(extra_config)
         ]
         
@@ -135,7 +136,7 @@ def export_to_excel(input_json: str, output_excel: str):
             cell.alignment = Alignment(vertical="center", wrap_text=True)
     
     # 设置列宽
-    column_widths = [6, 25, 10, 12, 30, 12, 20, 25, 10, 40, 30]
+    column_widths = [6, 12, 25, 10, 15, 25, 20, 30, 10, 30]
     for i, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
@@ -147,10 +148,11 @@ def export_to_excel(input_json: str, output_excel: str):
     help_content = [
         ["字段配置说明"],
         [],
+        ["Section No (节号)", "Word文档中的节号(section)，从1开始"],
         ["Type (类型)", "可选值: text, checkbox, table, image"],
         ["Source Prefix (数据源)", "可选值: metadata, extracted_data, calculated_data"],
-        ["Is Calculated (是否计算)", "是/否，如果为\"是\"，需要填写Function和Args"],
-        ["Function (计算函数)", "calculator.py中注册的函数名"],
+        ["Source Field (字段名)", "字段名称（不含前缀）"],
+        ["Function (计算函数)", "calculator.py中注册的函数名（计算字段需填写）"],
         ["Args (参数)", "逗号分隔的参数路径，如: extracted_data.wattage, extracted_data.flux"],
         ["Extra Config (额外配置)", "table: template:xxx.docx;strategy:fixed_rows;headers:1"],
         ["", "image: width:4.0;align:center"],
@@ -192,27 +194,29 @@ def import_from_excel(input_excel: str, output_json: str):
     
     # 从第2行开始读取（跳过表头）
     for row in range(2, ws.max_row + 1):
-        template_field = ws.cell(row=row, column=2).value
+        template_field = ws.cell(row=row, column=3).value  # Template Field在第3列
         if not template_field:
             continue
         
-        field_type = ws.cell(row=row, column=3).value or "text"
-        source_prefix = ws.cell(row=row, column=4).value or "extracted_data"
-        source_field = ws.cell(row=row, column=5).value or f"{source_prefix}.{template_field}"
-        is_calculated = ws.cell(row=row, column=6).value in ["是", "yes", "true", "True", True]
-        function = ws.cell(row=row, column=7).value or ""
-        args_str = ws.cell(row=row, column=8).value or ""
-        location = ws.cell(row=row, column=9).value or "body"
-        extra_config = ws.cell(row=row, column=11).value or ""
+        section_no = ws.cell(row=row, column=2).value or 1  # Section No在第2列
+        field_type = ws.cell(row=row, column=4).value or "text"  # Type在第4列
+        source_prefix = ws.cell(row=row, column=5).value or "extracted_data"  # Source Prefix在第5列
+        field_name = ws.cell(row=row, column=6).value or template_field  # Source Field在第6列
+        source_field = f"{source_prefix}.{field_name}"  # 重新组装完整路径
+        function = ws.cell(row=row, column=7).value or ""  # Function在第7列
+        args_str = ws.cell(row=row, column=8).value or ""  # Args在第8列
+        location = ws.cell(row=row, column=9).value or "body"  # Location在第9列
+        extra_config = ws.cell(row=row, column=10).value or ""  # Extra Config在第10列
         
         mapping = {
             "template_field": template_field,
             "source_field": source_field,
-            "type": field_type
+            "type": field_type,
+            "section_no": section_no
         }
         
-        # 添加计算字段属性
-        if is_calculated:
+        # 添加计算字段属性（如果填写了function）
+        if function:
             mapping["function"] = function
             if args_str:
                 mapping["args"] = [a.strip() for a in str(args_str).split(",") if a.strip()]
