@@ -11,9 +11,12 @@ import math
 # 导入安全评估工具
 sys.path.insert(0, str(__file__).rsplit('\\', 2)[0])
 from utils.safe_eval import safe_eval_formula, safe_eval_lambda, SafeEvalError
+from utils.logging_config import get_logger
 
 # 导入专用转换器
 from .custom_transformers import CustomTransformerRegistry
+
+logger = get_logger(__name__)
 
 
 class TableDataTransformer:
@@ -151,7 +154,7 @@ class TableDataTransformer:
                 transformer_name, data, config, extracted_data
             )
         except Exception as e:
-            print(f"Custom transform error ({transformer_name}): {e}")
+            logger.error(f"Custom transform error ({transformer_name}): {e}")
             return data
     
     def _apply_skip_columns(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
@@ -189,7 +192,7 @@ class TableDataTransformer:
         """
         position = config.get('position', 0)
         source = config.get('source', '')
-        print(f"metadata in add_column: {metadata}")
+        logger.debug(f"metadata in add_column: {metadata}")
         result = []
         for row_idx, row in enumerate(data):
             if source == 'row_index':
@@ -221,7 +224,7 @@ class TableDataTransformer:
                 value = source.split(':', 1)[1]
             else:
                 value = ''
-            print(f"Adding column at position {position} with value: {value}")
+            logger.debug(f"Adding column at position {position} with value: {value}")
             new_row = row.copy()
             if position >= len(new_row) and row_idx == 0:
                 new_row.append(value)
@@ -251,11 +254,11 @@ class TableDataTransformer:
         operation = config.get('operation', '')
         decimal = config.get('decimal', None)
         function = config.get('function', None)
-        print(f"Calculating column {column} with operation {operation} and decimal {decimal}")
+        logger.debug(f"Calculating column {column} with operation {operation} and decimal {decimal}")
         result = [row[:] for row in data]
         
         if operation.startswith('formula='):
-            print(f"Applying formula calculation on column {column} with operation {operation}")
+            logger.debug(f"Applying formula calculation on column {column} with operation {operation}")
             formula = operation.split('=', 1)[1]
             for row_idx, row in enumerate(result):
                 try:
@@ -266,16 +269,16 @@ class TableDataTransformer:
                             variables[chr(65 + col_idx)] = float(val)  # A=0, B=1, ...
                     
                     formula_exp = self._parse_column_references(formula, row_idx, row)
-                    print(f"Evaluating formula for row {row_idx}: {formula_exp}")
+                    logger.debug(f"Evaluating formula for row {row_idx}: {formula_exp}")
                     
                     # 使用安全评估替代 eval
                     evaluated_value = safe_eval_formula(formula_exp, variables)
-                    print(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
+                    logger.debug(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
                     row[column] = self._format_number(evaluated_value, decimal)
                 except SafeEvalError as e:
-                    print(f"Safe eval error for row {row_idx}: {e}")
+                    logger.warning(f"Safe eval error for row {row_idx}: {e}")
                 except Exception as e:
-                    print(f"Error calculating row {row_idx}: {e}")
+                    logger.warning(f"Error calculating row {row_idx}: {e}")
         
         return result
     
@@ -284,10 +287,10 @@ class TableDataTransformer:
         try:
             return safe_eval_lambda(func_str, value)
         except SafeEvalError as e:
-            print(f"Safe eval error for function '{func_str}': {e}")
+            logger.warning(f"Safe eval error for function '{func_str}': {e}")
             return str(value)
         except Exception as e:
-            print(f"Failed to format value {value} with function: {e}")
+            logger.warning(f"Failed to format value {value} with function: {e}")
             return str(value)
     
     def _apply_format_column(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:
@@ -329,10 +332,10 @@ class TableDataTransformer:
                 try:
                     row[column] = safe_eval_lambda(func_str, value)
                 except SafeEvalError as e:
-                    print(f"Safe eval error for function '{func_str}': {e}")
+                    logger.warning(f"Safe eval error for function '{func_str}': {e}")
                     row[column] = str(value)
                 except Exception as e:
-                    print(f"Failed to format value {value}: {e}")
+                    logger.warning(f"Failed to format value {value}: {e}")
                     row[column] = str(value)
         
         return result
@@ -344,7 +347,7 @@ class TableDataTransformer:
             if column < len(row) and self._is_numeric(row[column]):
                 value = float(row[column])
                 row[column] = f"{value:.{decimal}f}"
-                print(f"Formatted value at column {column}: {row[column]} at decimal {decimal}")
+                logger.debug(f"Formatted value at column {column}: {row[column]} at decimal {decimal}")
         return result
     
     def _apply_reorder(self, data: List[List[Any]], config: Dict) -> List[List[Any]]:

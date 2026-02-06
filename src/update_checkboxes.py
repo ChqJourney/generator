@@ -4,6 +4,9 @@ import sys
 import argparse
 from docx import Document
 from docx.oxml import parse_xml
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 def load_checkbox_mapping(json_path):
     with open(json_path, 'r', encoding='utf-8') as f:
@@ -62,20 +65,20 @@ def main():
         checkbox_mapping = load_checkbox_mapping(args.json_path)
         updated = update_checkboxes(args.docx_path, checkbox_mapping, args.output_path)
         
-        print(f"成功更新 {len(updated)} 个checkbox:")
+        logger.info(f"成功更新 {len(updated)} 个checkbox:")
         for name, checked in updated.items():
             status = "勾选" if checked else "取消勾选"
-            print(f"  {name}: {status}")
-        print(f"已保存到: {args.output_path}")
+            logger.info(f"  {name}: {status}")
+        logger.info(f"已保存到: {args.output_path}")
         
     except FileNotFoundError as e:
-        print(f"错误: 文件未找到 - {e}", file=sys.stderr)
+        logger.error(f"文件未找到 - {e}")
         sys.exit(1)
     except json.JSONDecodeError as e:
-        print(f"错误: JSON格式错误 - {e}", file=sys.stderr)
+        logger.error(f"JSON格式错误 - {e}")
         sys.exit(1)
     except Exception as e:
-        print(f"错误: {e}", file=sys.stderr)
+        logger.error(f"错误: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -322,15 +322,15 @@ class TestTextInserter:
         # 验证文本被替换
         assert mock_paragraph_with_placeholder.runs[0].text == "new_value"
     
-    def test_insert_text_not_found(self, mock_document, capsys):
+    def test_insert_text_not_found(self, mock_document, caplog):
         """测试占位符不存在时的处理"""
         mock_document.paragraphs = []
         
         inserter = TextInserter(mock_document)
-        inserter.insert("nonexistent", "value", "body")
+        with caplog.at_level("WARNING"):
+            inserter.insert("nonexistent", "value", "body")
         
-        captured = capsys.readouterr()
-        assert "未找到" in captured.out or "not found" in captured.out.lower()
+        assert "未找到" in caplog.text or "not found" in caplog.text.lower()
     
     def test_validate_location_invalid(self, mock_document):
         """测试无效位置抛出异常"""
@@ -609,15 +609,15 @@ class TestCheckboxInserter:
         # 验证 checked 元素被移除
         mock_checkbox.remove.assert_called_once_with(mock_checked)
     
-    def test_insert_checkbox_not_found(self, mock_document, capsys):
+    def test_insert_checkbox_not_found(self, mock_document, caplog):
         """测试复选框未找到时的警告"""
         mock_document.part.element.findall.return_value = []
         
         inserter = CheckboxInserter(mock_document)
-        inserter.insert({"nonexistent_checkbox": True})
+        with caplog.at_level("WARNING"):
+            inserter.insert({"nonexistent_checkbox": True})
         
-        captured = capsys.readouterr()
-        assert "未找到" in captured.out or "not found" in captured.out.lower()
+        assert "未找到" in caplog.text or "not found" in caplog.text.lower()
 
 
 # =============================================================================

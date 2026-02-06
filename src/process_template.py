@@ -9,10 +9,14 @@ from docx.shared import Inches
 
 sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 try:
     from processor import DocxTemplateProcessor, DocxTemplateError
 except ImportError:
-    print("Error: processor.py not found. Please ensure it is in the scripts directory.", file=sys.stderr)
+    logger.error("processor.py not found. Please ensure it is in the scripts directory.")
     sys.exit(1)
 
 
@@ -163,15 +167,15 @@ def main():
         output_path = Path(args.output)
 
         if not template_path.exists():
-            print(f"Error: Template file not found: {template_path}", file=sys.stderr)
+            logger.error(f"Template file not found: {template_path}")
             return 1
         
         if not operations_path.exists():
-            print(f"Error: Operations file not found: {operations_path}", file=sys.stderr)
+            logger.error(f"Operations file not found: {operations_path}")
             return 1
         
         if not report_path.exists():
-            print(f"Error: Calculated report file not found: {report_path}", file=sys.stderr)
+            logger.error(f"Calculated report file not found: {report_path}")
             return 1
         
         # 加载数据
@@ -182,10 +186,10 @@ def main():
         metadata = prepare_metadata(calculated_report)
         targets_data = prepare_targets(calculated_report)
         
-        print(f"Loaded calculated report: {report_path}", file=sys.stderr)
-        print(f"  Metadata fields: {len(calculated_report.get('metadata', {}))}", file=sys.stderr)
-        print(f"  Extracted data fields: {len(calculated_report.get('extracted_data', {}))}", file=sys.stderr)
-        print(f"  Calculated data fields: {len(calculated_report.get('calculated_data', {}))}", file=sys.stderr)
+        logger.info(f"Loaded calculated report: {report_path}")
+        logger.info(f"  Metadata fields: {len(calculated_report.get('metadata', {}))}")
+        logger.info(f"  Extracted data fields: {len(calculated_report.get('extracted_data', {}))}")
+        logger.info(f"  Calculated data fields: {len(calculated_report.get('calculated_data', {}))}")
         
         processor = DocxTemplateProcessor(str(template_path), str(output_path))
         
@@ -250,10 +254,10 @@ def main():
                 )
                 op_count += 1
         
-        print(f"\nExecuting {op_count} operations...", file=sys.stderr)
+        logger.info(f"Executing {op_count} operations...")
         result = processor.process()
         
-        print(f"\nReport generated successfully: {result}", file=sys.stderr)
+        logger.info(f"Report generated successfully: {result}")
         
         # Auto open the output file in Windows
         if sys.platform == "win32":
@@ -263,16 +267,16 @@ def main():
         return 0
     
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+        logger.error(f"File not found - {e}")
         return 1
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON - {e}", file=sys.stderr)
+        logger.error(f"Invalid JSON - {e}")
         return 1
     except DocxTemplateError as e:
-        print(f"DocxTemplateError: {e}", file=sys.stderr)
+        logger.error(f"DocxTemplateError: {e}")
         return 1
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return 1

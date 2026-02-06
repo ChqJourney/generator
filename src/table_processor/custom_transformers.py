@@ -7,6 +7,14 @@ import statistics
 import re
 from typing import List, Dict, Optional, Any, Callable
 from dataclasses import dataclass
+import sys
+import os
+
+# 添加项目根目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 # 格式化规则类
@@ -191,7 +199,7 @@ def photometric_data_transformer(data: List[List[Any]], params: Dict,
                         row.append('')
                     row[col_idx] = value
                 except Exception as e:
-                    print(f"Formula calculation error: {eval_formula}, {e}")
+                    logger.warning(f"Formula calculation error: {eval_formula}, {e}")
     
     # 2. 求平均数并添加平均行
     average_columns = params.get('average_columns', [])

@@ -12,6 +12,9 @@ import sys
 
 # 导入公共工具
 from utils.path_navigator import DataNavigator
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -238,7 +241,7 @@ class FieldCalculator:
                         raise
                     # 记录错误但继续处理
                     template_field = mapping.get('template_field', 'unknown')
-                    print(f"Warning: Failed to calculate field '{template_field}': {e}")
+                    logger.warning(f"Failed to calculate field '{template_field}': {e}")
         
         return results
     
@@ -508,23 +511,23 @@ def main():
         # 保存结果
         save_json(args.output, calculated_report)
         
-        print(f"Successfully calculated {len(results)} fields: {args.output}")
+        logger.info(f"Successfully calculated {len(results)} fields: {args.output}")
         for field, fv in results.items():
-            print(f"  - {field}: {fv.value}")
+            logger.info(f"  - {field}: {fv.value}")
         
         return 0
         
     except FileNotFoundError as e:
-        print(f"Error: File not found - {e}", file=sys.stderr)
+        logger.error(f"File not found - {e}")
         return 1
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON - {e}", file=sys.stderr)
+        logger.error(f"Invalid JSON - {e}")
         return 1
     except CalculatorError as e:
-        print(f"Calculation error: {e}", file=sys.stderr)
+        logger.error(f"Calculation error: {e}")
         return 1
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return 1

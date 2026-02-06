@@ -10,6 +10,9 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 # 修复 Windows 控制台编码问题
 if sys.platform == 'win32':
@@ -52,12 +55,14 @@ class ValidationReport:
     
     def print_report(self):
         """打印验证报告"""
+        # 验证报告使用print直接输出到控制台，因为这是用户直接查看的输出
         print("\n" + "=" * 60)
         print("Report JSON 格式验证报告")
         print("=" * 60)
         
         if not self.errors and not self.warnings:
             print("[通过] 所有检查通过！格式正确。\n")
+            logger.info("Validation passed: no errors or warnings")
             return
         
         if self.errors:
@@ -65,18 +70,21 @@ class ValidationReport:
             for err in self.errors:
                 path_str = f" [{err.path}]" if err.path else ""
                 print(f"  - {err.message}{path_str}")
+                logger.error(f"Validation error: {err.message}{path_str}")
         
         if self.warnings:
             print(f"\n[警告] 发现 {len(self.warnings)} 个警告：")
             for warn in self.warnings:
                 path_str = f" [{warn.path}]" if warn.path else ""
                 print(f"  - {warn.message}{path_str}")
+                logger.warning(f"Validation warning: {warn.message}{path_str}")
         
         if self.infos:
             print(f"\n[提示] 提示信息 ({len(self.infos)} 条)：")
             for info in self.infos:
                 path_str = f" [{info.path}]" if info.path else ""
                 print(f"  - {info.message}{path_str}")
+                logger.info(f"Validation info: {info.message}{path_str}")
         
         print("\n" + "=" * 60)
         if self.is_valid:
@@ -310,10 +318,10 @@ def main():
         try:
             report_data = load_json(args.report)
         except FileNotFoundError:
-            print(f"Error: 文件不存在 - {args.report}", file=sys.stderr)
+            logger.error(f"文件不存在 - {args.report}")
             return 1
         except json.JSONDecodeError as e:
-            print(f"Error: JSON 格式错误 - {e}", file=sys.stderr)
+            logger.error(f"JSON 格式错误 - {e}")
             return 1
         
         # 加载 config（可选）
@@ -322,9 +330,9 @@ def main():
             try:
                 config_data = load_json(args.config)
             except FileNotFoundError:
-                print(f"Warning: 配置文件不存在 - {args.config}", file=sys.stderr)
+                logger.warning(f"配置文件不存在 - {args.config}")
             except json.JSONDecodeError as e:
-                print(f"Warning: 配置文件 JSON 格式错误 - {e}", file=sys.stderr)
+                logger.warning(f"配置文件 JSON 格式错误 - {e}")
         
         # 执行验证
         validator = ReportValidator(report_data, config_data)
@@ -351,7 +359,7 @@ def main():
         return 0
         
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return 1
