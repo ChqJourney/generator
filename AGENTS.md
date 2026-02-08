@@ -44,13 +44,23 @@ docx/
 │   ├── field_mapper.py            # Field mapping to operations
 │   ├── calculator.py              # Field value calculation with registry
 │   ├── process_template.py        # CLI wrapper for processor
-│   ├── validate_report.py         # Report JSON validator
+│   ├── report_data_validator.py   # Comprehensive data validator
+│   ├── template_validator.py      # Template placeholder validator
 │   ├── update_checkboxes.py       # Checkbox state updater
 │   ├── custom_calculations_example.py  # Custom calculation examples
 │   └── table_processor/           # Table processing module
 │       ├── __init__.py
 │       ├── data_transformer.py    # Data transformation rules
 │       └── table_inserter.py      # Enhanced table inserter
+
+### 7. Legacy Validator (Deprecated)
+
+**Note**: `src/validate_report.py` has been **removed**. Its functionality has been fully integrated into `src/report_data_validator.py`, which provides more comprehensive validation including:
+- Enhanced data structure validation
+- Field type and content validation
+- Table data format checking
+- Image path verification
+- Configuration consistency validation
 ├── tests/                          # Test suite
 │   ├── test_field_mapper.py       # Unit tests for field_mapper
 │   └── test_calculator.py         # Unit tests for calculator
@@ -58,6 +68,9 @@ docx/
 ├── README.md                       # Human-readable documentation
 ├── ARCHITECTURE_REFACTOR.md        # Architecture migration guide
 ├── TABLE_PROCESSOR_SUMMARY.md      # Table processor documentation
+├── docs/                           # Documentation
+│   ├── VALIDATOR_AND_CALCULATOR_GUIDE.md  # Validator and Calculator usage guide
+│   └── QUICK_REFERENCE.md          # Quick reference card
 ├── pyproject.toml                  # Project configuration
 ├── pytest.ini                     # Test configuration
 └── requirements.txt               # Dependencies
@@ -185,14 +198,82 @@ python src/field_mapper.py \
 - `fixed_rows` - Fill existing rows in template
 - `dynamic_rows` - Add/remove rows to match data
 
-### 5. Report Validator (`src/validate_report.py`)
+### 5. Report Data Validator (`src/report_data_validator.py`)
 
-**Purpose**: Validate report.json format before processing.
+**Purpose**: Comprehensive validation of report.json data format, content, and consistency with configuration.
+
+**Validation Scope**:
+- Data structure integrity (metadata, extracted_data, calculated_data)
+- Field type and data type validation
+- Table data format validation (headers, column consistency)
+- Image path validation (file existence)
+- Configuration consistency check (data fields mapped in config)
 
 **CLI Usage**:
 ```bash
-python src/validate_report.py --report config/report.json --config config/report_config.json
+# Basic validation (data format only)
+python src/report_data_validator.py --report config/report.json
+
+# Full validation (including config consistency)
+python src/report_data_validator.py --report config/report.json --config config/report_config.json
+
+# Strict mode (non-zero exit code on warnings)
+python src/report_data_validator.py --report config/report.json --config config/report_config.json --strict
 ```
+
+### 6. Template Validator (`src/template_validator.py`)
+
+**Purpose**: Validate Word template placeholders, specifically checking if placeholders are split across multiple runs (the root cause of `{{}}`残留).
+
+**Validation Scope**:
+- Check if placeholders are split across multiple runs
+- Validate if placeholders are defined in configuration
+- Provide detailed repair suggestions
+
+**CLI Usage**:
+```bash
+# Check for split placeholders only (no config needed)
+python src/template_validator.py --template report_templates/production_template.docx
+
+# Also check if placeholders are defined in config
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+```
+
+**Fixing Split Placeholders**:
+
+When Template Validator reports a placeholder is split (e.g., `{{efficacy}}` split into `['{{', 'efficacy', '}}']`):
+
+1. Open the template in Word
+2. Locate the placeholder
+3. Delete the entire placeholder (including `{{}}`)
+4. **Manually retype** `{{placeholder_name}}` (do not copy-paste)
+5. Save the template and re-run Template Validator
+
+### 7. Validation Workflow (Recommended)
+
+Before generating reports, it's strongly recommended to run both validators:
+
+```bash
+# Step 1: Validate report.json data format and content
+python src/report_data_validator.py \
+    --report config/report.json \
+    --config config/report_config.json
+
+# Step 2: Validate Word template (check if placeholders will be processed correctly)
+python src/template_validator.py \
+    --template report_templates/production_template.docx \
+    --config config/report_config.json
+
+# Step 3: If both validations pass, proceed with report generation
+# (Run calculator.py → field_mapper.py → process_template.py)
+```
+
+**Why Both Validators?**
+
+- **Report Data Validator** checks data issues (missing fields, type errors, table format problems)
+- **Template Validator** checks template issues (split placeholders, missing config definitions)
+
+The two validators check different layers of issues and complement each other. Only when both pass can you be confident that report generation will succeed.
 
 ---
 
@@ -375,6 +456,23 @@ python src/process_template.py \
    ```json
    {"type": "format_column", "column": 4, "function": "lambda x: f'{x:.4f}' if x < 1 else f'{x:.2f}'"}
    ```
+
+---
+
+## Documentation References
+
+- **`docs/VALIDATOR_AND_CALCULATOR_GUIDE.md`** - Complete guide for using ReportDataValidator and Calculator
+  - Validator CLI and Python API usage
+  - Calculator configuration with `function` and `args`
+  - Built-in calculation functions reference
+  - Complete configuration examples
+
+- **`docs/QUICK_REFERENCE.md`** - Quick reference card for common tasks
+  - One-line commands for validation and calculation
+  - Common validation errors and solutions
+  - Configuration templates
+
+- **`config/report_config_example_complete.json`** - Complete configuration example with comments
 
 ---
 

@@ -4,45 +4,132 @@
   "field_mappings": [
     {
       "template_field": "report_no",
-      "source": "metadata",
-      "source_field": "report_no",
+      "source_field": "metadata.report_no",
       "type": "text"
     },
     {
       "template_field": "issue_date",
-      "source": "metadata",
-      "source_field": "issue_date",
+      "source_field": "metadata.issue_date",
       "type": "text"
     },
     {
       "template_field": "applicant_name",
-      "source": "metadata",
-      "source_field": "applicant_name",
+      "source_field": "metadata.applicant_name",
       "type": "text"
     },
     {
       "template_field": "applicant_address",
-      "source": "metadata",
-      "source_field": "applicant_address",
+      "source_field": "metadata.applicant_address",
+      "type": "text"
+    },
+    {
+      "template_field": "product_name",
+      "source_field": "metadata.product_name",
+      "type": "text"
+    },
+    {
+      "template_field": "manufacturer",
+      "source_field": "metadata.manufacturer",
+      "type": "text"
+    },
+    {
+      "template_field": "sample_received_date",
+      "source_field": "metadata.sample_received_date",
+      "type": "text"
+    },
+    {
+      "template_field": "test_period",
+      "source_field": "metadata.test_period",
+      "type": "text"
+    },
+    {
+      "template_field": "test_item_type",
+      "source_field": "metadata.test_item_type",
+      "type": "text"
+    },
+    {
+      "template_field": "removable_or_replaceable_module",
+      "source_field": "metadata.removable_or_replaceable_module",
+      "type": "text"
+    },
+    {
+      "template_field": "replaceable_or_non_replaceable_control_gear",
+      "source_field": "metadata.replaceable_or_non_replaceable_control_gear",
+      "type": "text"
+    },
+    {
+      "template_field": "light_source_tech",
+      "source_field": "metadata.light_source_tech",
+      "type": "text"
+    },
+    {
+      "template_field": "directional_or_non_directional",
+      "source_field": "metadata.directional_or_non_directional",
+      "type": "text"
+    },
+    {
+      "template_field": "connected_or_not",
+      "source_field": "metadata.connected_or_not",
+      "type": "text"
+    },
+    {
+      "template_field": "mains_or_not",
+      "source_field": "metadata.mains_or_not",
+      "type": "text"
+    },
+    {
+      "template_field": "color_tuneable",
+      "source_field": "metadata.color_tuneable",
+      "type": "text"
+    },
+    {
+      "template_field": "test_mode",
+      "source_field": "metadata.test_mode",
+      "type": "text"
+    },
+    {
+      "template_field": "controlgear_rating",
+      "source_field": "metadata.controlgear_rating",
+      "type": "text"
+    },
+    {
+      "template_field": "test_location",
+      "source_field": "metadata.test_location",
+      "type": "text"
+    },
+    {
+      "template_field": "test_at",
+      "source_field": "metadata.test_at",
       "type": "text"
     },
     {
       "template_field": "model_identifier",
-      "source": "extracted_data",
-      "source_field": "model_identifier",
+      "source_field": "extracted_data.model_identifier",
       "type": "text"
     },
     {
       "template_field": "rated_wattage",
-      "source": "extracted_data",
-      "source_field": "rated_wattage",
+      "source_field": "extracted_data.rated_wattage",
       "type": "text"
     },
-
+    {
+      "template_field": "useful_luminous_flux",
+      "source_field": "extracted_data.useful_luminous_flux",
+      "type": "text"
+    },
+    {
+      "template_field": "cct",
+      "source_field": "extracted_data.cct",
+      "type": "text"
+    },
+    {
+      "template_field": "standby_power",
+      "source_field": "extracted_data.standby_power",
+      "type": "text"
+    },
     {
       "template_field": "photometric_data",
-      "source": "extracted_data",
-      "source_field": "photometric_data",
+      "source_field": "extracted_data.photometric_data",
       "table_template_path": "report_templates/tables/photometric_table_template.docx",
       "type": "table",
       "row_strategy": "fixed_rows",
@@ -74,82 +161,9 @@
         }
       ]
     },
-
     {
-      "template_field": "beam_table",
-      "source": "extracted_data",
-      "source_field": "beam_data",
-      "table_template_path": "report_templates/tables/beam_table_template.docx",
-      "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 1,
-      "transformations": [
-        {
-          "type": "custom_transform",
-          "transformer": "beam_table_transformer",
-          "beam_angle_field": "beam_angle_0",
-          "peak_intensity_field": "peak_intensity_0",
-          "beam_angle_format": "{:.1f}",
-          "peak_intensity_format": "{:.0f}"
-        }
-      ]
-    },
-
-    {
-      "template_field": "eei_table",
-      "source": "extracted_data",
-      "source_field": "eei_data",
-      "table_template_path": "report_templates/tables/eei_table_template.docx",
-      "type": "table",
-      "row_strategy": "dynamic_rows",
-      "header_rows": 1,
-      "transformations": [
-        {
-          "type": "custom_transform",
-          "transformer": "eei_table_transformer",
-          "model_fields": ["model_identifier"],
-          "photometric_data_ref": "photometric_data",
-          "efficacy_column": 5,
-          "eei_thresholds": {
-            "A++": 130,
-            "A+": 110,
-            "A": 90,
-            "B": 70,
-            "C": 50,
-            "D": 30
-          },
-          "merge_columns": [3, 4],
-          "format_rules": {
-            "1": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
-          }
-        }
-      ]
-    },
-
-    {
-      "template_field": "zone_table",
-      "source": "extracted_data",
-      "source_field": "zone_data",
-      "table_template_path": "report_templates/tables/zone_table_template.docx",
-      "type": "table",
-      "row_strategy": "dynamic_rows",
-      "header_rows": 1,
-      "transformations": [
-        {
-          "type": "custom_transform",
-          "transformer": "zone_table_transformer",
-          "zone_angles": [30, 60, 90, 120, 150, 180],
-          "beam_angle_field": "beam_angle_0",
-          "min_angle": 30,
-          "format": "{:.1f}"
-        }
-      ]
-    },
-
-    {
-      "template_field": "life_table",
-      "source": "extracted_data",
-      "source_field": "life_test_data",
+      "template_field": "long_term_table",
+      "source_field": "extracted_data.long_term_table",
       "table_template_path": "report_templates/tables/life_test_table_template.docx",
       "type": "table",
       "row_strategy": "fixed_rows",
@@ -167,14 +181,66 @@
         }
       ]
     },
-
     {
       "template_field": "images",
-      "source": "extracted_data",
-      "source_field": "images",
+      "source_field": "extracted_data.images",
       "type": "image",
       "width": 4.0,
       "alignment": "center"
+    },
+    {
+      "template_field": "ratings",
+      "source_field": "calculated_data.ratings",
+      "type": "text",
+      "function": "concat",
+      "args": ["metadata.mains_or_not", "metadata.connected_or_not"],
+      "separator": ", "
+    },
+    {
+      "template_field": "efficacy",
+      "source_field": "calculated_data.efficacy",
+      "type": "text",
+      "function": "calculate_energy_efficacy",
+      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+    },
+    {
+      "template_field": "energy_class",
+      "source_field": "calculated_data.energy_class",
+      "type": "text",
+      "function": "calculate_energy_class_rating",
+      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+    },
+    {
+      "template_field": "sample_size",
+      "source_field": "calculated_data.sample_size",
+      "type": "text"
+    },
+    {
+      "template_field": "tbd_remarks",
+      "source_field": "calculated_data.tbd_remarks",
+      "type": "text"
+    },
+    {
+      "template_field": "standards_applied",
+      "source_field": "calculated_data.standards_applied",
+      "type": "text"
+    },
+    {
+      "template_field": "PonMax",
+      "source_field": "calculated_data.PonMax",
+      "type": "text"
+    },
+    {
+      "template_field": "required_maintenance",
+      "source_field": "calculated_data.required_maintenance",
+      "type": "text",
+      "function": "calculate_percentage",
+      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+    },
+    {
+      "template_field": "efficency_of_cg",
+      "source_field": "calculated_data.efficency_of_cg",
+      "type": "text"
     }
   ],
   "merge_strategy": "prefer_first"

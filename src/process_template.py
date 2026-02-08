@@ -7,7 +7,8 @@ import json
 from pathlib import Path
 from docx.shared import Inches
 
-sys.path.insert(0, str(Path(__file__).parent.parent / 'scripts'))
+# 将 src 目录添加到路径
+sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.logging_config import get_logger
 
@@ -15,8 +16,8 @@ logger = get_logger(__name__)
 
 try:
     from processor import DocxTemplateProcessor, DocxTemplateError
-except ImportError:
-    logger.error("processor.py not found. Please ensure it is in the scripts directory.")
+except ImportError as e:
+    logger.error(f"processor.py import error: {e}")
     sys.exit(1)
 
 

@@ -414,25 +414,91 @@ When replacing paragraphs with tables or images, the code checks for parent elem
 - Offsets: JSON strings converted to integers
 - Table data: All values converted to strings
 
-## Testing
+## Validation Tools
 
-### Validation Tool
+项目提供两个验证工具，用于在报告生成前检查数据和模板：
+
+### 1. Report Data Validator (`src/report_data_validator.py`)
+
+验证 `report.json` 数据格式和内容，包括：
+- 数据结构完整性（metadata, extracted_data, calculated_data）
+- 字段类型和数据类型验证
+- 表格数据格式验证（表头、列数一致性）
+- 图像路径验证（文件是否存在）
+- 配置一致性检查（数据字段是否在配置中有映射）
+
+**基本用法：**
 ```bash
-python src/validate_placeholders.py --config config/report_config.json
+# 只验证 report.json 格式
+python src/report_data_validator.py --report config/report.json
+
+# 同时验证与配置的一致性
+python src/report_data_validator.py --report config/report.json --config config/report_config.json
+
+# 严格模式（有警告时返回非零退出码）
+python src/report_data_validator.py --report config/report.json --config config/report_config.json --strict
 ```
 
-Expected output:
-- Lists all placeholder locations
-- Validates placeholder context (paragraph vs table)
-- Checks for missing placeholders in config
-- Identifies extra placeholders not in config
+### 2. Template Validator (`src/template_validator.py`)
+
+验证 Word 模板中的占位符状态：
+- **检查占位符是否被分割到多个 runs 中**（这是导致 `{{}}` 残留的根本原因）
+- 验证占位符是否在配置中有定义
+- 提供详细的修复建议
+
+**基本用法：**
+```bash
+# 只检查占位符是否被分割（不需要 config）
+python src/template_validator.py --template report_templates/production_template.docx
+
+# 同时检查占位符是否在 config 中有定义
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+```
+
+### 推荐的验证工作流
+
+在生成报告前，建议按以下顺序执行验证：
+
+```bash
+# 步骤 1: 验证 report.json 数据格式和内容
+python src/report_data_validator.py --report config/report.json --config config/report_config.json
+
+# 步骤 2: 验证 Word 模板（检查占位符是否会被正确处理）
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+
+# 步骤 3: 如果验证通过，继续生成报告
+# (执行 field_mapper.py → process_template.py 等)
+```
+
+### 常见问题与解决
+
+**问题 1: Template Validator 报告占位符被分割**
+- **原因**: Word 将占位符 `{{placeholder}}` 分割成多个 runs（如 `'{{'`, `'placeholder'`, `'}}'`）
+- **解决**: 在 Word 中删除该占位符，**手动重新输入**（不要复制粘贴），确保在一个连续的文本块中
+
+**问题 2: Report Data Validator 报告字段类型不匹配**
+- **原因**: 字段值类型与期望类型不符（如数值字段传入字符串）
+- **解决**: 检查 `report.json` 中对应字段的值，确保类型正确
+
+**问题 3: 配置一致性验证失败**
+- **原因**: `report_config.json` 中引用的字段在 `report.json` 中不存在
+- **解决**: 添加缺失的字段到 `report.json`，或从配置中移除该字段映射
+
+## Testing
+
+### Legacy Validation Tool (Deprecated)
+```bash
+# 注意：validate_placeholders.py 已弃用，请使用新的验证工具
+python src/validate_placeholders.py --config config/report_config.json
+```
 
 ### Test Workflow
 1. Update `config/data.json` with test data
 2. Run `field_mapper.py` to generate operations
-3. Run `validate_placeholders.py` to verify template
-4. Run `process_template.py` to generate output
-5. Open output file and verify content
+3. Run `src/report_data_validator.py` to verify data (NEW)
+4. Run `src/template_validator.py` to verify template (NEW)
+5. Run `process_template.py` to generate output
+6. Open output file and verify content
 
 ## AI Agent Quick Start
 
@@ -486,7 +552,9 @@ Expected output:
 │   ├── field_mapper.py         # Operation generator
 │   ├── processor.py            # Core processor engine
 │   ├── process_template.py      # CLI wrapper
-│   └── validate_placeholders.py  # Validation tool
+│   ├── report_data_validator.py  # Data validation tool
+│   ├── template_validator.py    # Template validation tool
+│   └── validate_placeholders.py  # Legacy validation tool (deprecated)
 └── output/                    # Generated reports
 ```
 

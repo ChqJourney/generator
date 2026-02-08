@@ -35,7 +35,7 @@ def get_value_by_path(data: Dict, path: str) -> Any:
 
 def is_direct_table_data(value: Any) -> bool:
     """
-    判断值是否为直接的表格数据（列表的列表）
+    判断值是否为直接的表格数据（列表的列表或标准表格格式）
     
     Args:
         value: 字段值
@@ -43,11 +43,38 @@ def is_direct_table_data(value: Any) -> bool:
     Returns:
         bool: 是否是直接表格数据
     """
+    # 检查是否是标准表格格式 {"type": "table", "value": [...]}
+    if isinstance(value, dict) and value.get('type') == 'table':
+        table_value = value.get('value', [])
+        return (
+            isinstance(table_value, list) and 
+            len(table_value) > 0 and 
+            isinstance(table_value[0], list)
+        )
+    
+    # 检查是否是直接的列表的列表格式
     return (
         isinstance(value, list) and 
         len(value) > 0 and 
         isinstance(value[0], list)
     )
+
+
+def extract_table_data(value: Any) -> Optional[List[List]]:
+    """
+    从表格数据中提取实际的表格内容
+    
+    Args:
+        value: 字段值（可能是列表的列表或标准表格格式）
+        
+    Returns:
+        List[List]: 表格数据（列表的列表）
+    """
+    if isinstance(value, dict) and value.get('type') == 'table':
+        return value.get('value')
+    if isinstance(value, list):
+        return value
+    return None
 
 
 def generate_operations(config: Dict, report_data: Dict) -> Dict:
@@ -104,17 +131,14 @@ def generate_operations(config: Dict, report_data: Dict) -> Dict:
             })
         
         elif field_type == 'table':
-            table_data = None
+            # 提取表格数据（支持标准格式和直接列表格式）
+            table_data = extract_table_data(value)
             
-            # 判断数据源类型
-            if is_direct_table_data(value):
-                # 直接是表格数据（内嵌）
-                table_data = value
-                logger.info(f"Using embedded table data for {placeholder}")
-            
-            else:
+            if table_data is None:
                 logger.warning(f"Unrecognized table data format for {placeholder}")
                 continue
+            
+            logger.info(f"Using embedded table data for {placeholder}")
             
             operation = {
                 'type': 'table',

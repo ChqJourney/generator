@@ -1,4 +1,7 @@
 .venv
 _pycache__/
 __pycache__/
-
+output/
+*.docx
+!report_templates/*.docx
+!report_templates/**/*.docx

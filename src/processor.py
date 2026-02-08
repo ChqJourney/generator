@@ -7,7 +7,7 @@ import os
 from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from table_processor import EnhancedTableInserter, TableDataTransformer
+from table_processor import TableDataTransformer
 
 class DocxTemplateError(Exception):
     pass
@@ -34,14 +34,16 @@ class PlaceholderFinder:
 
     @staticmethod
     def _search_paragraphs_in_container(container, placeholder):
+        # 同时搜索裸占位符和带 {{}} 的占位符
+        search_terms = [placeholder, f'{{{{{placeholder}}}}}']
         for i, paragraph in enumerate(container.paragraphs):
-            if placeholder in paragraph.text:
+            if any(term in paragraph.text for term in search_terms):
                 yield i, paragraph
         for table_idx, table in enumerate(container.tables):
             for row_idx, row in enumerate(table.rows):
                 for cell_idx, cell in enumerate(row.cells):
                     for p_idx, paragraph in enumerate(cell.paragraphs):
-                        if placeholder in paragraph.text:
+                        if any(term in paragraph.text for term in search_terms):
                             yield (table_idx, row_idx, cell_idx, p_idx), paragraph
 
     @staticmethod
@@ -112,13 +114,95 @@ class PlaceholderFinder:
 
     @staticmethod
     def _replace_in_paragraph(paragraph, placeholder, value):
-        if placeholder in paragraph.text:
-            runs = paragraph.runs
-            if runs:
-                for run in runs:
-                    if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value)
-                        return True
+        # 同时搜索裸占位符和带 {{}} 的占位符
+        wrapped_placeholder = f'{{{{{placeholder}}}}}'
+        
+        # 检查段落中是否包含占位符
+        if placeholder not in paragraph.text and wrapped_placeholder not in paragraph.text:
+            return False
+        
+        runs = paragraph.runs
+        if not runs:
+            return False
+        
+        # 首先尝试在单个 run 中匹配完整格式 {{placeholder}}
+        for run in runs:
+            if wrapped_placeholder in run.text:
+                run.text = run.text.replace(wrapped_placeholder, value)
+                return True
+        
+        # 然后尝试在单个 run 中匹配裸占位符
+        for run in runs:
+            if placeholder in run.text:
+                run.text = run.text.replace(placeholder, value)
+                return True
+        
+        # 处理占位符被分割到多个 runs 的情况
+        # 例如: Run0='{{', Run1='efficacy', Run2='}}'
+        full_text = ''.join(run.text for run in runs)
+        if wrapped_placeholder in full_text:
+            new_text = full_text.replace(wrapped_placeholder, value)
+            # 将所有文本放入第一个 run，清空其他 runs
+            runs[0].text = new_text
+            for run in runs[1:]:
+                run.text = ''
+            return True
+        
+        # 处理只有占位符名称被分割，但 {{ 和 }} 分别在前后 run 的情况
+        # 例如: Run0='{{', Run1='efficacy', Run2='}}'
+        # 或者值已经被替换的情况: Run0='{{', Run1='100.00', Run2='}}'
+        for i, run in enumerate(runs):
+            # 检查是否包含占位符名称或者已经被替换的值
+            has_placeholder = placeholder in run.text
+            has_value = value in run.text and value != placeholder
+            
+            if not has_placeholder and not has_value:
+                continue
+            
+            # 检查前一个 run 是否包含 '{{'
+            has_open_braces = False
+            if i > 0:
+                prev_text = runs[i-1].text.strip()
+                # 支持 '{{' 或末尾有 '{{'
+                if prev_text == '{{' or prev_text.endswith('{{'):
+                    has_open_braces = True
+            
+            # 检查后一个 run 是否包含 '}}'
+            has_close_braces = False
+            if i < len(runs) - 1:
+                next_text = runs[i+1].text.strip()
+                # 支持 '}}' 或开头有 '}}'
+                if next_text == '}}' or next_text.startswith('}}'):
+                    has_close_braces = True
+            
+            # 如果包含占位符，进行替换
+            if has_placeholder:
+                run.text = run.text.replace(placeholder, value)
+            
+            # 清除前一个 run 的 '{{'
+            if has_open_braces:
+                prev_text = runs[i-1].text
+                if prev_text.strip() == '{{':
+                    runs[i-1].text = ''
+                else:
+                    # 只移除末尾的 '{{'
+                    idx = prev_text.rfind('{{')
+                    if idx >= 0:
+                        runs[i-1].text = prev_text[:idx]
+            
+            # 清除后一个 run 的 '}}'
+            if has_close_braces:
+                next_text = runs[i+1].text
+                if next_text.strip() == '}}':
+                    runs[i+1].text = ''
+                else:
+                    # 只移除开头的 '}}'
+                    idx = next_text.find('}}')
+                    if idx >= 0:
+                        runs[i+1].text = next_text[idx+2:]
+            
+            return True
+        
         return False
 
 class ContentInserter(ABC):
@@ -157,7 +241,7 @@ class TextInserter(ContentInserter):
         
         replaced = False
         for idx, paragraph in results:
-            if TextInserter._replace_in_paragraph(paragraph, placeholder, value):
+            if PlaceholderFinder._replace_in_paragraph(paragraph, placeholder, value):
                 replaced = True
         
         if not replaced:
@@ -266,15 +350,18 @@ class TableInserter(ContentInserter):
         if not data:
             return
         
+        # 跳过数据中的表头行（前 header_rows 行）
+        data_with_skip = data[header_rows:] if header_rows > 0 else data
+        
         data_row_idx = 0
         for row_idx, row in enumerate(table.rows):
             if row_idx < header_rows:
                 continue
             
-            if data_row_idx >= len(data):
+            if data_row_idx >= len(data_with_skip):
                 break
             
-            data_row = data[data_row_idx]
+            data_row = data_with_skip[data_row_idx]
             data_col_idx = 0
             
             for col_idx, cell in enumerate(row.cells):
@@ -300,7 +387,10 @@ class TableInserter(ContentInserter):
         
         num_columns = len(table.rows[0].cells) if table.rows else 0
         
-        for data_row in data:
+        # 跳过数据中的表头行（前 header_rows 行）
+        data_with_skip = data[header_rows:] if header_rows > 0 else data
+        
+        for data_row in data_with_skip:
             new_row = table.add_row()
             
             if len(new_row.cells) < num_columns:

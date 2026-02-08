@@ -2,9 +2,10 @@
 日志配置模块
 为整个项目提供统一的日志配置和获取logger的接口
 """
+import io
 import logging
 import sys
-from typing import Optional
+from typing import Optional, TextIO
 
 
 # 默认日志格式
@@ -16,7 +17,7 @@ SIMPLE_FORMAT = '%(levelname)s: %(message)s'
 def setup_logging(
     level: int = logging.INFO,
     format_str: str = DEFAULT_FORMAT,
-    stream: Optional[sys.__stdout__] = None,
+    stream: Optional[TextIO] = None,
     log_file: Optional[str] = None
 ) -> logging.Logger:
     """
