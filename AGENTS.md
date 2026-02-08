@@ -587,13 +587,3 @@ python src/process_template.py \
 6. **Checkbox Auto-Setting**: Template checkboxes not configured in `report_config.json` are automatically set to `false` during processing.
 
 ---
-
-## Migration from Old Architecture
-
-If you encounter old configuration files:
-- Old: Separate `metadata.json`, `extracted_data.json`, `calculated_data.json`
-- New: Single `report.json` with hierarchical structure
-- Old: `"source": "metadata"` + `"source_field": "field_name"`
-- New: `"source_field": "metadata.field_name"`
-
-See `ARCHITECTURE_REFACTOR.md` for detailed migration guide.

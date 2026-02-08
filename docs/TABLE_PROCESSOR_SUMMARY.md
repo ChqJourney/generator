@@ -32,6 +32,7 @@ src/table_processor/
 - ✅ **dynamic_rows** - 动态行数模式
 - ✅ **skip_columns** - 自动跳过模板中的固定列
 - ✅ **header_rows** - 指定表头行数
+- ✅ **text_insert** - 在指定行列插入文本（从数据源动态获取）
 
 ### 3. 百分比格式化最佳实践
 
@@ -382,15 +383,63 @@ elif op['type'] == 'table':
 }
 ```
 
+## 7. Text Insert 功能
+
+### 7.1 功能概述
+
+`text_insert` 功能允许在表格的指定行和列位置插入从数据源动态获取的文本值。这对于需要在表格中插入动态标签、标题或说明文字非常有用。
+
+### 7.2 配置示例
+
+```json
+{
+  "template_field": "photometric_data_table",
+  "source_field": "extracted_data.photometric_data_table",
+  "type": "table",
+  "table_template_path": "report_templates/tables/photometric_table_template.docx",
+  "row_strategy": "fixed_rows",
+  "header_rows": 2,
+  "skip_columns": [0, 1],
+  "text_insert": [
+    {"column": 0, "row": 2, "value": "extracted_data.light_source_type"},
+    {"column": 1, "row": 2, "value": "metadata.report_no"}
+  ],
+  "transformations": [...]
+}
+```
+
+### 7.3 字段说明
+
+- `text_insert`: 文本插入配置数组
+  - `column`: 列索引（从0开始）
+  - `row`: 行索引（从0开始）
+  - `value`: 数据源路径，使用点符号表示（如 `extracted_data.light_source_type`）
+
+### 7.4 数据源路径格式
+
+- `metadata.field_name` - 从 `calculated_report.metadata.field_name` 读取
+- `extracted_data.field_name` - 从 `calculated_report.extracted_data.field_name` 读取
+- `calculated_data.field_name` - 从 `calculated_report.calculated_data.field_name` 读取
+
+### 7.5 实现细节
+
+- 文本插入发生在主数据填充过程之后
+- 从 `calculated_report` 中使用点符号路径解析值
+- 如果路径无法解析或返回 `None`，则不插入文本
+- 此功能同时支持 `fixed_rows` 和 `dynamic_rows` 策略
+
+---
+
 ## 总结
 
 ✅ 模块已独立实现
 ✅ 支持函数式小数点控制
 ✅ 支持skip_columns机制
 ✅ 支持fixed_rows和dynamic_rows两种策略
+✅ 支持text_insert功能（在指定行列插入动态文本）
 ✅ 聚合操作支持function参数（百分比格式化）
 ✅ 测试脚本已创建并验证通过
 ✅ 配置文件示例已提供
 ✅ 使用文档已完成
 
-**当前状态**：模块实现完成，支持在JSON配置文件中使用函数式小数点控制。聚合同行合并功能已实现，百分比格式化最佳实践已记录。
+**当前状态**：模块实现完成，支持在JSON配置文件中使用函数式小数点控制。聚合同行合并功能已实现，百分比格式化最佳实践已记录，text_insert功能已添加。
