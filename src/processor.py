@@ -1,13 +1,15 @@
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-import sys
-import shutil
 import os
+import shutil
 from typing import List, Dict, Optional, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from table_processor import TableDataTransformer
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class DocxTemplateError(Exception):
     pass
@@ -23,15 +25,6 @@ class InvalidLocationError(DocxTemplateError):
         super().__init__(f"Invalid location '{location}' for {content_type}. Valid locations: body, header, footer")
 
 class PlaceholderFinder:
-    @staticmethod
-    def _iterate_container(container):
-        yield from container.paragraphs
-        for table_idx, table in enumerate(container.tables):
-            for row_idx, row in enumerate(table.rows):
-                for cell_idx, cell in enumerate(row.cells):
-                    for p_idx, paragraph in enumerate(cell.paragraphs):
-                        yield (table_idx, row_idx, cell_idx, p_idx), paragraph
-
     @staticmethod
     def _search_paragraphs_in_container(container, placeholder):
         # 同时搜索裸占位符和带 {{}} 的占位符
@@ -94,23 +87,6 @@ class PlaceholderFinder:
             
         except (AttributeError, ValueError) as e:
             raise DocxTemplateError(f"Failed to replace paragraph with element: {str(e)}")
-
-    @staticmethod
-    def _iterate_placeholders(doc, location):
-        if location == 'body':
-            yield from doc.paragraphs
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        yield from cell.paragraphs
-        elif location in ('header', 'footer'):
-            for section in doc.sections:
-                container = getattr(section, location + 's')
-                yield from container.paragraphs
-                for table in container.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            yield from cell.paragraphs
 
     @staticmethod
     def _replace_in_paragraph(paragraph, placeholder, value):
@@ -226,17 +202,17 @@ class TextInserter(ContentInserter):
         
         # 如果在指定位置找不到，尝试在所有位置查找
         if not results:
-            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
+            logger.warning(f"在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
             for loc in ['header', 'body', 'footer']:
                 if loc != location:  # 跳过已经搜索过的位置
                     results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
                     if results:
-                        print(f"在 {loc} 中找到占位符 '{placeholder}'")
+                        logger.info(f"在 {loc} 中找到占位符 '{placeholder}'")
                         location = loc  # 更新location
                         break
         
         if not results:
-            print(f"警告: 占位符 '{placeholder}' 在所有位置都未找到，跳过此操作")
+            logger.warning(f"占位符 '{placeholder}' 在所有位置都未找到，跳过此操作")
             return
         
         replaced = False
@@ -246,46 +222,6 @@ class TextInserter(ContentInserter):
         
         if not replaced:
             print(f"警告: 占位符 '{placeholder}' 未能成功替换，跳过此操作")
-    
-    def _iterate_placeholders(self, location):
-        if location == 'body':
-            yield from self.doc.paragraphs
-            for table in self.doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        yield from cell.paragraphs
-        elif location == 'header':
-            for section in self.doc.sections:
-                for header in [section.header, section.first_page_header, section.even_page_header]:
-                    if header:
-                        yield from header.paragraphs
-                        for table in header.tables:
-                            for row in table.rows:
-                                for cell in row.cells:
-                                    yield from cell.paragraphs
-        elif location == 'footer':
-            for section in self.doc.sections:
-                for footer in [section.footer, section.first_page_footer, section.even_page_footer]:
-                    if footer:
-                        yield from footer.paragraphs
-                        for table in footer.tables:
-                            for row in table.rows:
-                                for cell in row.cells:
-                                    yield from cell.paragraphs
-
-    @staticmethod
-    def _replace_in_paragraph(paragraph, placeholder, value):
-        if placeholder in paragraph.text:
-            runs = paragraph.runs
-            if runs:
-                for run in runs:
-                    if placeholder in run.text:
-                        if '{{' + placeholder + '}}' in run.text:
-                            run.text = run.text.replace('{{' + placeholder + '}}', value)
-                        else:
-                            run.text = run.text.replace(placeholder, value)
-                        return True
-        return False
 
 class TableInserter(ContentInserter):
     def insert(self, placeholder: str, table_template_path: str, 
@@ -444,8 +380,6 @@ class TableInserter(ContentInserter):
                     return _Cell(current, None)
                 current = current.getparent()
             
-            return None
-        except Exception:
             return None
         except Exception:
             return None

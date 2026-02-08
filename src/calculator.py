@@ -4,11 +4,9 @@
 """
 
 import json
-import re
 from typing import Dict, Any, List, Optional, Callable, Union
 from dataclasses import dataclass
 import importlib
-import sys
 
 # 导入公共工具
 from utils.path_navigator import DataNavigator
@@ -534,4 +532,5 @@ def main():
 
 
 if __name__ == '__main__':
+    import sys
     sys.exit(main())

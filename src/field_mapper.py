@@ -3,9 +3,6 @@
 新架构：从calculated_report.json读取数据，支持点号路径访问
 """
 import json
-import sys
-import re
-from pathlib import Path
 from typing import Dict, Any, List, Optional
 from utils.path_navigator import DataNavigator
 from utils.logging_config import get_logger
@@ -212,4 +209,5 @@ def main():
 
 
 if __name__ == '__main__':
+    import sys
     sys.exit(main())
