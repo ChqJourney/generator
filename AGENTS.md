@@ -27,18 +27,12 @@ This is a Python-based Word document report generation system that automates the
 docx/
 ├── config/                          # Configuration files
 │   ├── report_config.json          # Main field mapping configuration
-│   ├── report_example.json         # Example report data structure
-│   ├── data.json                   # Sample extracted product data
-│   ├── metadata.json               # Sample metadata
-│   └── table_processor_config_example.json  # Table transformation examples
+│   ├── report_data.json            # Example report data structure
 ├── data_files/                     # Data sources
 │   └── TDS.xlsx                   # Excel test data source
 ├── report_templates/               # Word templates
-│   ├── report_template1.docx      # Main report template
-│   ├── photometric_table_template.docx
-│   ├── life_test_table_template.docx
-│   ├── luminous_flux_table_template.docx
-│   └── config.xlsx
+│   ├── production_template.docx      # Main report template
+│   └── tables
 ├── src/                            # Source code
 │   ├── processor.py               # Core template processing engine
 │   ├── field_mapper.py            # Field mapping to operations
@@ -46,51 +40,18 @@ docx/
 │   ├── process_template.py        # CLI wrapper for processor
 │   ├── report_data_validator.py   # Comprehensive data validator
 │   ├── template_validator.py      # Template placeholder validator
-│   ├── update_checkboxes.py       # Checkbox state updater
-│   ├── custom_calculations_example.py  # Custom calculation examples
+│   ├── utils                      # utils scripts, logging,path,and others
 │   └── table_processor/           # Table processing module
 │       ├── __init__.py
 │       ├── data_transformer.py    # Data transformation rules
-│       └── table_inserter.py      # Enhanced table inserter
+│       └── custom_transformers.py      # custom transformer
 
-### 7. Legacy Validator (Deprecated)
 
-**Note**: `src/validate_report.py` has been **removed**. Its functionality has been fully integrated into `src/report_data_validator.py`, which provides more comprehensive validation including:
-- Enhanced data structure validation
-- Field type and content validation
-- Table data format checking
-- Image path verification
-- Configuration consistency validation
-├── tests/                          # Test suite
-│   ├── test_field_mapper.py       # Unit tests for field_mapper
-│   └── test_calculator.py         # Unit tests for calculator
-├── output/                         # Generated reports (output directory)
-├── README.md                       # Human-readable documentation
-├── ARCHITECTURE_REFACTOR.md        # Architecture migration guide
-├── TABLE_PROCESSOR_SUMMARY.md      # Table processor documentation
-├── docs/                           # Documentation
-│   ├── VALIDATOR_AND_CALCULATOR_GUIDE.md  # Validator and Calculator usage guide
-│   └── QUICK_REFERENCE.md          # Quick reference card
-├── pyproject.toml                  # Project configuration
-├── pytest.ini                     # Test configuration
-└── requirements.txt               # Dependencies
 ```
 
 ---
 
 ## Architecture and Data Flow
-
-### New Architecture (Post-Refactor)
-
-```
-report.json (hierarchical data)
-    ↓
-calculator.py → calculated_report.json (adds calculated_data)
-    ↓
-field_mapper.py → operations.json
-    ↓
-process_template.py → processor.py → Output .docx
-```
 
 ### Data Structure Hierarchy
 
@@ -101,7 +62,11 @@ The system uses a three-tier hierarchical data structure:
   "metadata": {
     "report_no": "RPT-001",
     "issue_date": "2024-03-15",
-    "applicant_name": "..."
+    "applicant_name": "...",
+    "containing_product": {
+      "type": "checkbox",
+      "value": "true"
+    }
   },
   "extracted_data": {
     "model_identifier": "LED-100W",
@@ -159,6 +124,11 @@ python src/calculator.py \
 - **Embedded**: Direct list-of-lists in JSON
 - **External**: `{type: "external", source_id: "file.xlsx|SheetName", start_row: N, mapping: {...}}`
 
+**Checkbox Data Handling**:
+- Parses checkbox values from `{"type": "checkbox", "value": "true/false"}` format
+- Defaults to `false` when checkbox field is missing in report data
+- Generates `checkbox_mapping` operation for each checkbox field
+
 **CLI Usage**:
 ```bash
 python src/field_mapper.py \
@@ -178,9 +148,14 @@ python src/field_mapper.py \
 - `ImageInserter`: Handles image insertion
 - `CheckboxInserter`: Updates form checkbox states
 
-**Placeholder Format**: `{{placeholder_name}}`
+**Placeholder Format**: `{{placeholder_name}}` for text/table/image; checkbox names match Word form field names
 
 **Supported Locations**: `body`, `header`, `footer` (including first_page_header, even_page_header, etc.)
+
+**Checkbox Processing**:
+- `CheckboxInserter` class handles form checkbox state updates
+- Automatically sets unchecked state for template checkboxes not in operations
+- Checkbox names must exactly match Word form field names (extract using `tools/extract_template_elements.py`)
 
 ### 4. Table Processor Module (`src/table_processor/`)
 
@@ -270,10 +245,10 @@ python src/template_validator.py \
 
 **Why Both Validators?**
 
-- **Report Data Validator** checks data issues (missing fields, type errors, table format problems)
-- **Template Validator** checks template issues (split placeholders, missing config definitions)
+- **Report Data Validator** checks data issues (missing fields, type errors, table format problems, checkbox data format)
+- **Template Validator** checks template issues (split placeholders, missing config definitions, checkbox name mismatches)
 
-The two validators check different layers of issues and complement each other. Only when both pass can you be confident that report generation will succeed.
+The two validators check different layers of issues and complement each other. Only when both pass can you be confident that report generation will succeed. Note that checkbox validation is automatic - template checkboxes without configuration will be set to `false`.
 
 ---
 
@@ -318,9 +293,50 @@ The two validators check different layers of issues and complement each other. O
       "type": "image",
       "width": 4.0,
       "alignment": "center"
+    },
+    {
+      "template_field": "containing_product",
+      "source_field": "metadata.containing_product",
+      "type": "checkbox"
     }
   ]
 }
+```
+
+### Checkbox Configuration
+
+**Field Mapping for Checkbox:**
+```json
+{
+  "template_field": "checkbox_name_in_word",
+  "source_field": "metadata.checkbox_field",
+  "type": "checkbox"
+}
+```
+
+**Data Format in report.json:**
+```json
+{
+  "metadata": {
+    "checkbox_field": {
+      "type": "checkbox",
+      "value": "true"
+    }
+  }
+}
+```
+
+**Behavior:**
+1. Each checkbox is an independent field_mapping entry
+2. `template_field` must match the checkbox name in Word template
+3. Data always uses format `{"type": "checkbox", "value": "true/false"}`
+4. If `report_config` has checkbox but `report_data` doesn't have the field, defaults to `false`
+5. Template checkboxes not in operations are automatically set to `false`
+
+**Checkbox Name Extraction:**
+```bash
+# Extract checkboxes from template
+python tools/extract_template_elements.py report_templates/production_template.docx
 ```
 
 ---
@@ -369,12 +385,13 @@ python src/field_mapper.py \
 
 # Step 4: Process template
 python src/process_template.py \
-    --template report_templates/report_template1.docx \
+    --template report_templates/production_template.docx \
     --operations output/operations.json \
-    --metadata config/metadata.json \
-    --targets config/data.json \
-    --output output/final_report.docx
+    --calculated-report config/report_data.json \
+    --output output/report.docx
 ```
+
+**Note:** In the new architecture, `process_template.py` uses `--calculated-report` instead of separate `--metadata` and `--targets` arguments. Checkbox operations are automatically handled during template processing.
 
 ---
 
@@ -406,6 +423,7 @@ python src/process_template.py \
 1. **eval() Usage**: `data_transformer.py` uses `eval()` for lambda functions from JSON config. Ensure config files are from trusted sources.
 2. **File Paths**: Always validate file paths before operations.
 3. **Word File Locks**: Processor checks for Word lock files (`~$filename.docx`) before writing.
+4. **Checkbox Auto-Setting**: Template checkboxes not in `checkbox_mapping` are automatically unchecked to ensure document consistency.
 
 ---
 
@@ -446,6 +464,30 @@ python src/process_template.py \
 2. Ensure placeholder `{{new_field}}` exists in Word template
 3. Run validation to verify
 
+### Adding a Checkbox Field
+
+1. Add checkbox entry to `config/report_config.json` field_mappings:
+   ```json
+   {
+     "template_field": "containing_product",
+     "source_field": "metadata.containing_product",
+     "type": "checkbox"
+   }
+   ```
+2. Add checkbox data to `config/report.json`:
+   ```json
+   {
+     "metadata": {
+       "containing_product": {
+         "type": "checkbox",
+         "value": "true"
+       }
+     }
+   }
+   ```
+3. Ensure the checkbox name matches the form field name in Word template
+4. Template checkboxes without configuration will be automatically set to `false`
+
 ### Adding a Custom Calculation
 
 1. Create/edit `src/custom_calculations.py`:
@@ -479,6 +521,43 @@ python src/process_template.py \
    {"type": "format_column", "column": 4, "function": "lambda x: f'{x:.4f}' if x < 1 else f'{x:.2f}'"}
    ```
 
+### Table Text Insert Configuration
+
+**Purpose**: Insert text at specific row and column positions in tables, useful for inserting headers or labels from data fields.
+
+**Configuration Example**:
+```json
+{
+  "template_field": "photometric_data_table",
+  "source_field": "extracted_data.photometric_data_table",
+  "type": "table",
+  "table_template_path": "report_templates/tables/photometric_table_template.docx",
+  "row_strategy": "fixed_rows",
+  "header_rows": 2,
+  "text_insert": [
+    {"column": 0, "row": 2, "value": "extracted_data.light_source_type"}
+  ],
+  "transformations": [...]
+}
+```
+
+**Field Descriptions**:
+- `text_insert`: Array of text insertion configurations
+  - `column`: Column index (0-based) where text will be inserted
+  - `row`: Row index (0-based) where text will be inserted
+  - `value`: Dot-notation path to the data field (e.g., `extracted_data.light_source_type`, `metadata.report_no`)
+
+**Data Source Path Format**:
+- `metadata.field_name` - reads from `calculated_report.metadata.field_name`
+- `extracted_data.field_name` - reads from `calculated_report.extracted_data.field_name`
+- `calculated_data.field_name` - reads from `calculated_report.calculated_data.field_name`
+
+**Implementation Details**:
+- Text insertion occurs after the main data filling process
+- The value is resolved from `calculated_report` using the dot-notation path
+- If the path cannot be resolved or returns `None`, no text is inserted
+- This feature works with both `fixed_rows` and `dynamic_rows` strategies
+
 ---
 
 ## Documentation References
@@ -505,6 +584,7 @@ python src/process_template.py \
 3. **Nested Tables**: Placeholders in nested table cells may be skipped if parent cannot be determined.
 4. **File Encoding**: All JSON files use UTF-8 encoding.
 5. **Windows Compatibility**: Code handles Windows path separators and console encoding.
+6. **Checkbox Auto-Setting**: Template checkboxes not configured in `report_config.json` are automatically set to `false` during processing.
 
 ---
 

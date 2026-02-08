@@ -221,11 +221,11 @@ class TableInserter(ContentInserter):
     def insert(self, placeholder: str, table_template_path: str, 
                raw_data: Optional[List[List[str]]] = None,
                transformations: Optional[List[Dict]] = None,
-               metadata: Optional[Dict] = None,
-                targets_data: Optional[Dict] = None,
+               calculated_report: Optional[Dict] = None,
                row_strategy: str = 'fixed_rows',
                skip_columns: Optional[List[int]] = None,
                header_rows: int = 1,
+               text_insert: Optional[List[Dict]] = None,
                location: str = 'body'):
         self.validate_location(location, ['body'])
         
@@ -236,8 +236,7 @@ class TableInserter(ContentInserter):
         
         processed_data = raw_data
         if raw_data and transformations:
-            processed_data = transformer.transform(raw_data, transformations, metadata, targets_data)
-            
+            processed_data = transformer.transform(raw_data, transformations, calculated_report)
         
         table_template = Document(table_template_path)
         if not table_template.tables:
@@ -246,7 +245,8 @@ class TableInserter(ContentInserter):
         template_table = table_template.tables[0]
         
         if row_strategy == 'fixed_rows':
-            self._fill_fixed_rows(template_table, processed_data, skip_columns, header_rows)
+            print(f"processed data: {processed_data}")
+            self._fill_fixed_rows(template_table, processed_data, skip_columns, header_rows, text_insert, calculated_report)
         elif row_strategy == 'dynamic_rows':
             self._fill_dynamic_rows(template_table, processed_data, skip_columns, header_rows)
         
@@ -276,22 +276,29 @@ class TableInserter(ContentInserter):
                     print(f"      尝试在单元格内插入也失败: {str(e2)}")
                     continue
     
-    def _fill_fixed_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int):
+    def _fill_fixed_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int, text_insert: Optional[List[Dict]] = None, calculated_report: Optional[Dict] = None):
+        """填充固定行数的表格
+        
+        header_rows: 模板表格中表头行数，从第 header_rows 行开始填充数据
+        data: 要填充的完整数据（不包含表头）
+        text_insert: 在特定行列插入文本的配置列表
+        calculated_report: 用于解析 value 路径的数据源
+        """
         if not data:
             return
         
-        # 跳过数据中的表头行（前 header_rows 行）
-        data_with_skip = data[header_rows:] if header_rows > 0 else data
-        
+        # header_rows 只控制从模板表格的哪一行开始填充，不跳过数据
         data_row_idx = 0
         for row_idx, row in enumerate(table.rows):
+            # 跳过模板表格的表头行
             if row_idx < header_rows:
                 continue
             
-            if data_row_idx >= len(data_with_skip):
+            # 使用完整的数据，不跳过任何行
+            if data_row_idx >= len(data):
                 break
             
-            data_row = data_with_skip[data_row_idx]
+            data_row = data[data_row_idx]
             data_col_idx = 0
             
             for col_idx, cell in enumerate(row.cells):
@@ -307,20 +314,66 @@ class TableInserter(ContentInserter):
                     data_col_idx += 1
             
             data_row_idx += 1
+        
+        # 处理 text_insert - 在特定行列插入文本
+        if text_insert and calculated_report:
+            for insert_config in text_insert:
+                row_idx = insert_config.get('row')
+                col_idx = insert_config.get('column')
+                value_path = insert_config.get('value')
+                
+                if row_idx is not None and col_idx is not None and value_path:
+                    # 从 calculated_report 中解析值
+                    value = self._get_value_from_path(calculated_report, value_path)
+                    if value:
+                        # 获取指定行列的 cell 并设置值
+                        if row_idx < len(table.rows):
+                            row = table.rows[row_idx]
+                            if col_idx < len(row.cells):
+                                cell = row.cells[col_idx]
+                                self._set_cell_value(cell, str(value))
+    
+    def _get_value_from_path(self, data: Dict, path: str) -> Optional[str]:
+        """从字典中根据路径获取值
+        
+        Args:
+            data: 数据源字典
+            path: 点分隔的路径，如 'extracted_data.light_source_type'
+            
+        Returns:
+            找到的值或 None
+        """
+        if not path or not data:
+            return None
+        
+        keys = path.split('.')
+        current = data
+        
+        for key in keys:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        
+        return str(current) if current is not None else None
     
     def _fill_dynamic_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int):
+        """动态填充表格行数
+        
+        header_rows: 模板表格中表头行数，从第 header_rows 行开始填充数据
+        data: 要填充的完整数据（不包含表头）
+        """
         if not data:
             return
         
+        # 保留表头行，删除多余的数据行
         while len(table.rows) > header_rows:
             table._tbl.remove(table.rows[-1]._tr)
         
         num_columns = len(table.rows[0].cells) if table.rows else 0
         
-        # 跳过数据中的表头行（前 header_rows 行）
-        data_with_skip = data[header_rows:] if header_rows > 0 else data
-        
-        for data_row in data_with_skip:
+        # header_rows 只控制从模板表格的哪一行开始填充，不跳过数据
+        for data_row in data:
             new_row = table.add_row()
             
             if len(new_row.cells) < num_columns:
@@ -527,6 +580,71 @@ class ImageInserter(ContentInserter):
             if not isinstance(dimension, Length):
                 raise DocxTemplateError(f"Invalid image dimension '{dimension}'. Must be a Length object (e.g., Inches, Mm, Cm, Pt)")
 
+class CheckboxInserter(ContentInserter):
+    """
+    Checkbox 状态更新器
+    
+    根据 checkbox_mapping 更新 Word 文档中的 checkbox 控件状态
+    """
+    
+    def insert(self, checkbox_mapping: Dict[str, bool]):
+        """
+        更新文档中的 checkbox 状态
+        
+        Args:
+            checkbox_mapping: checkbox 名称到布尔值的映射，如 {"cb1": True, "cb2": False}
+        """
+        from docx.oxml import parse_xml
+        
+        if not checkbox_mapping:
+            logger.warning("No checkbox mapping provided, skipping checkbox update")
+            return
+        
+        root = self.doc.part.element
+        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        w_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+        
+        checkboxes = root.findall('.//w:checkBox', namespaces=ns)
+        updated = {}
+        
+        for checkbox in checkboxes:
+            ffdata = checkbox.getparent()
+            if ffdata is not None:
+                name = ffdata.find('w:name', namespaces=ns)
+                if name is not None:
+                    field_name = name.get(w_ns + 'val')
+                    
+                    if field_name in checkbox_mapping:
+                        should_check = checkbox_mapping[field_name]
+                        
+                        checked = checkbox.find('w:checked', namespaces=ns)
+                        default = checkbox.find('w:default', namespaces=ns)
+                        
+                        if should_check:
+                            if checked is None:
+                                new_checked = parse_xml(f'<w:checked w:val="1" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>')
+                                checkbox.append(new_checked)
+                            else:
+                                checked.set(w_ns + 'val', '1')
+                            if default is not None:
+                                default.set(w_ns + 'val', '1')
+                            updated[field_name] = True
+                            logger.info(f"Checkbox '{field_name}' checked")
+                        else:
+                            if checked is not None:
+                                checkbox.remove(checked)
+                            if default is not None:
+                                default.set(w_ns + 'val', '0')
+                            updated[field_name] = False
+                            logger.info(f"Checkbox '{field_name}' unchecked")
+        
+        # 检查是否有未找到的 checkbox
+        for field_name in checkbox_mapping:
+            if field_name not in updated:
+                logger.warning(f"Checkbox '{field_name}' not found in document")
+        
+        logger.info(f"Updated {len(updated)} checkbox(es)")
+
 class DocxTemplateProcessor:
     def __init__(self, template_path: str, output_path: str):
         if not os.path.exists(template_path):
@@ -551,22 +669,22 @@ class DocxTemplateProcessor:
     def add_table(self, placeholder: str, table_template_path: str, 
                   raw_data: Optional[List[List[str]]] = None,
                   transformations: Optional[List[Dict]] = None,
-                  metadata: Optional[Dict] = None,
-                  targets_data: Optional[Dict] = None,
+                  calculated_report: Optional[Dict] = None,
                   row_strategy: str = 'fixed_rows',
                   skip_columns: Optional[List[int]] = None,
-                  header_rows: int = 1):
+                  header_rows: int = 1,
+                  text_insert: Optional[List[Dict]] = None):
         self.operations.append({
             'type': 'table',
             'placeholder': placeholder,
             'table_template_path': table_template_path,
             'raw_data': raw_data,
             'transformations': transformations,
-            'metadata': metadata,
-            'targets_data': targets_data,
+            'calculated_report': calculated_report,
             'row_strategy': row_strategy,
             'skip_columns': skip_columns,
-            'header_rows': header_rows
+            'header_rows': header_rows,
+            'text_insert': text_insert
         })
         return self
     
@@ -581,6 +699,20 @@ class DocxTemplateProcessor:
             'height': height,
             'alignment': alignment,
             'location': location
+        })
+        return self
+    
+    def add_checkboxes(self, checkbox_mapping: Dict[str, bool]):
+        """
+        添加 checkbox 状态更新操作
+        
+        Args:
+            checkbox_mapping: checkbox 名称到布尔值的映射
+                           如 {"cb1": True, "cb2": False}
+        """
+        self.operations.append({
+            'type': 'checkbox',
+            'checkbox_mapping': checkbox_mapping
         })
         return self
     
@@ -647,11 +779,11 @@ class DocxTemplateProcessor:
                         op['table_template_path'],
                         op.get('raw_data'),
                         op.get('transformations'),
-                        op.get('metadata'),
-                        op.get('targets_data'),
+                        op.get('calculated_report'),
                         op.get('row_strategy', 'fixed_rows'),
                         op.get('skip_columns'),
                         op.get('header_rows', 1),
+                        op.get('text_insert'),
                         'body'
                     )
                 
@@ -659,6 +791,10 @@ class DocxTemplateProcessor:
                     inserter = ImageInserter(self.doc)
                     inserter.insert(op['placeholder'], op['image_paths'], 
                                   op['width'], op['height'], op['alignment'], op['location'])
+                
+                elif op['type'] == 'checkbox':
+                    inserter = CheckboxInserter(self.doc)
+                    inserter.insert(op['checkbox_mapping'])
             
             self.doc.save(self.output_path)
             print(f"文档已保存至: {self.output_path}")

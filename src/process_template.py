@@ -21,6 +21,41 @@ except ImportError as e:
     sys.exit(1)
 
 
+def extract_template_checkboxes(template_path: Path) -> set:
+    """
+    从Word模板中提取所有checkbox的名称
+    
+    Args:
+        template_path: Word模板文件路径
+        
+    Returns:
+        set: checkbox名称集合
+    """
+    try:
+        from docx import Document
+        doc = Document(str(template_path))
+        root = doc.part.element
+        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        w_ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+        
+        checkboxes = set()
+        checkbox_elements = root.findall('.//w:checkBox', namespaces=ns)
+        
+        for checkbox in checkbox_elements:
+            ffdata = checkbox.getparent()
+            if ffdata is not None:
+                name_elem = ffdata.find('w:name', namespaces=ns)
+                if name_elem is not None:
+                    field_name = name_elem.get(w_ns + 'val')
+                    if field_name:
+                        checkboxes.add(field_name)
+        
+        return checkboxes
+    except Exception as e:
+        logger.warning(f"Failed to extract checkboxes from template: {e}")
+        return set()
+
+
 def load_calculated_report(report_path: Path) -> dict:
     """
     加载calculated_report.json文件
@@ -78,47 +113,7 @@ def get_nested_value(data: dict, path: str, default=None):
     return value
 
 
-def prepare_metadata(calculated_report: dict) -> dict:
-    """
-    准备metadata数据（用于表格转换器）
-    
-    将calculated_report扁平化，便于转换器访问
-    """
-    metadata = calculated_report.get('metadata', {}).copy()
-    
-    # 添加extracted_data和calculated_data引用，便于转换器访问
-    metadata['extracted_data'] = calculated_report.get('extracted_data', {})
-    metadata['calculated_data'] = calculated_report.get('calculated_data', {})
-    
-    return metadata
 
-
-def prepare_targets(calculated_report: dict) -> dict:
-    """
-    准备targets数据（用于表格转换器）
-    
-    将extracted_data中的字段转换为targets格式
-    """
-    targets = []
-    
-    extracted_data = calculated_report.get('extracted_data', {})
-    for key, value in extracted_data.items():
-        if not isinstance(value, (list, dict)):  # 只添加简单值
-            targets.append({
-                "name": key,
-                "value": value
-            })
-    
-    # 也添加metadata中的字段
-    metadata = calculated_report.get('metadata', {})
-    for key, value in metadata.items():
-        if not isinstance(value, (list, dict)):
-            targets.append({
-                "name": key,
-                "value": value
-            })
-    
-    return {"targets": targets}
 
 
 def resolve_text_value(value_ref: str, calculated_report: dict) -> str:
@@ -202,8 +197,6 @@ def main():
             operations_data = json.load(f)
         
         calculated_report = load_calculated_report(report_path)
-        metadata = prepare_metadata(calculated_report)
-        targets_data = prepare_targets(calculated_report)
         
         logger.info(f"Loaded calculated report: {report_path}")
         logger.info(f"  Metadata fields: {len(calculated_report.get('metadata', {}))}")
@@ -211,6 +204,26 @@ def main():
         logger.info(f"  Calculated data fields: {len(calculated_report.get('calculated_data', {}))}")
         
         processor = DocxTemplateProcessor(str(template_path), str(output_path))
+        
+        # 处理未设置的 checkbox：模板中有但 operations 中没有的 checkbox 自动设为 false
+        template_checkboxes = extract_template_checkboxes(template_path)
+        if template_checkboxes:
+            logger.info(f"Found {len(template_checkboxes)} checkboxes in template")
+            
+            # 收集 operations 中已设置的 checkbox
+            operations_checkboxes = set()
+            for op in operations_data.get('operations', []):
+                if op.get('type') == 'checkbox':
+                    checkbox_mapping = op.get('checkbox_mapping', {})
+                    operations_checkboxes.update(checkbox_mapping.keys())
+            
+            # 找出未设置的 checkbox
+            unchecked_checkboxes = template_checkboxes - operations_checkboxes
+            if unchecked_checkboxes:
+                logger.info(f"Auto-setting {len(unchecked_checkboxes)} checkboxes to false: {unchecked_checkboxes}")
+                # 为未设置的 checkbox 添加 false 的 operation
+                auto_checkbox_mapping = {name: False for name in unchecked_checkboxes}
+                processor.add_checkboxes(auto_checkbox_mapping)
         
         op_count = 0
         for op in operations_data.get('operations', []):
@@ -259,19 +272,27 @@ def main():
                 row_strategy = op.get('row_strategy', 'fixed_rows')
                 skip_columns = op.get('skip_columns')
                 header_rows = op.get('header_rows', 1)
+                text_insert = op.get('text_insert')
                 
                 processor.add_table(
                     placeholder,
                     table_template_path,
                     raw_data,
                     transformations,
-                    metadata,
-                    targets_data,
+                    calculated_report,
                     row_strategy,
                     skip_columns,
-                    header_rows
+                    header_rows,
+                    text_insert
                 )
                 op_count += 1
+            
+            elif op_type == 'checkbox':
+                checkbox_mapping = op.get('checkbox_mapping', {})
+                if checkbox_mapping:
+                    processor.add_checkboxes(checkbox_mapping)
+                    op_count += 1
+                    logger.debug(f"Added checkbox operation: {checkbox_mapping}")
         
         logger.info(f"Executing {op_count} operations...")
         result = processor.process()

@@ -22,7 +22,8 @@ logger = get_logger(__name__)
 class TableDataTransformer:
     """表格数据转换器"""
     
-    def transform(self, data, transformations, metadata=None, targets_data=None):
+    def transform(self, data, transformations, calculated_report=None):
+        print(f"calculated_report in transform: {calculated_report}")
         result = [row[:] for row in data]
     
         # 分离聚合操作和非聚合操作
@@ -37,7 +38,7 @@ class TableDataTransformer:
     
         # 先执行非聚合操作
         for transform in other_transforms:
-            result = self._execute_transform(result, transform, metadata, targets_data)
+            result = self._execute_transform(result, transform, calculated_report)
     
         # 统一处理所有聚合操作
         if agg_configs:
@@ -99,14 +100,14 @@ class TableDataTransformer:
         result.append(agg_row)
         return result
     
-    def _execute_transform(self, data: List[List[Any]], transform: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
+    def _execute_transform(self, data: List[List[Any]], transform: Dict, calculated_report: Optional[Dict] = None) -> List[List[Any]]:
         """执行单个转换操作"""
         transform_type = transform.get('type')
         
         if transform_type == 'skip_columns':
             return self._apply_skip_columns(data, transform)
         elif transform_type == 'add_column':
-            return self._apply_add_column(data, transform, metadata, targets_data)
+            return self._apply_add_column(data, transform, calculated_report)
         elif transform_type == 'calculate':
             return self._apply_calculate(data, transform)
         elif transform_type == 'format_column':
@@ -116,12 +117,12 @@ class TableDataTransformer:
         elif transform_type == 'filter_rows':
             return self._apply_filter_rows(data, transform)
         elif transform_type == 'custom_transform':
-            return self._apply_custom_transform(data, transform, metadata)
+            return self._apply_custom_transform(data, transform, calculated_report)
         
         return data
 
     def _apply_custom_transform(self, data: List[List[Any]], config: Dict, 
-                                   metadata: Optional[Dict] = None) -> List[List[Any]]:
+                                   calculated_report: Optional[Dict] = None) -> List[List[Any]]:
         """
         应用专用自定义转换器
         
@@ -139,16 +140,10 @@ class TableDataTransformer:
             return data
         
         try:
-            # 从 metadata 或 targets_data 中提取 extracted_data
+            # 从 calculated_report 中提取 extracted_data
             extracted_data = None
-            if metadata and 'extracted_data' in metadata:
-                extracted_data = metadata['extracted_data']
-            elif metadata and 'fields' in metadata:
-                # 转换 fields 列表为字典
-                extracted_data = {}
-                for field in metadata.get('fields', []):
-                    if 'name' in field and 'value' in field:
-                        extracted_data[field['name']] = field['value']
+            if calculated_report and 'extracted_data' in calculated_report:
+                extracted_data = calculated_report['extracted_data']
             
             return CustomTransformerRegistry.transform(
                 transformer_name, data, config, extracted_data
@@ -179,7 +174,7 @@ class TableDataTransformer:
         
         return result
     
-    def _apply_add_column(self, data: List[List[Any]], config: Dict, metadata: Optional[Dict] = None, targets_data: Optional[Dict] = None) -> List[List[Any]]:
+    def _apply_add_column(self, data: List[List[Any]], config: Dict, calculated_report: Optional[Dict] = None) -> List[List[Any]]:
         """
         添加列
         
@@ -192,46 +187,56 @@ class TableDataTransformer:
         """
         position = config.get('position', 0)
         source = config.get('source', '')
-        logger.debug(f"metadata in add_column: {metadata}")
+        logger.debug(f"calculated_report in add_column: {calculated_report}")
         result = []
         for row_idx, row in enumerate(data):
             if source == 'row_index':
                 value = str(row_idx + 1)
             elif source.startswith('metadata:'):
+                # 从 metadata 中获取字段值
                 key = source.split(':', 1)[1]
-                if metadata is None or "fields" not in metadata:
-                    value = ''
-                else:
-                    value=''
-                    fields=metadata["fields"]
-                    for field in fields:
-                        if field.get("name")==key:
-                            value=field.get("value","")
-                            break
-                    
-            elif source.startswith('targets:'):
-                key = source.split(':', 1)[1]
-                if targets_data is None or "targets" not in targets_data:
-                    value = ''
+                if calculated_report and 'metadata' in calculated_report:
+                    metadata = calculated_report['metadata']
+                    if isinstance(metadata, dict):
+                        value = metadata.get(key, '')
+                    else:
+                        value = ''
                 else:
                     value = ''
-                    targets=targets_data["targets"]
-                    for target in targets:
-                        if target.get("name")==key:
-                            value=target.get("value","")
-                            break
+            elif source.startswith('extracted_data:'):
+                # 从 extracted_data 中获取字段值
+                key = source.split(':', 1)[1]
+                if calculated_report and 'extracted_data' in calculated_report:
+                    extracted_data = calculated_report['extracted_data']
+                    if isinstance(extracted_data, dict):
+                        value = extracted_data.get(key, '')
+                    else:
+                        value = ''
+                else:
+                    value = ''
+            elif source.startswith('calculated_data:'):
+                # 从 calculated_data 中获取字段值
+                key = source.split(':', 1)[1]
+                if calculated_report and 'calculated_data' in calculated_report:
+                    calculated_data = calculated_report['calculated_data']
+                    if isinstance(calculated_data, dict):
+                        value = calculated_data.get(key, '')
+                    else:
+                        value = ''
+                else:
+                    value = ''
             elif source.startswith('value:'):
                 value = source.split(':', 1)[1]
             else:
                 value = ''
             logger.debug(f"Adding column at position {position} with value: {value}")
             new_row = row.copy()
-            if position >= len(new_row) and row_idx == 0:
+            if position >= len(new_row):
+                # 位置超出当前行长度，直接追加
                 new_row.append(value)
-            elif row_idx == 0 and value != '':
-                new_row.insert(position, value)
             else:
-                new_row.insert(position, '')
+                # 在指定位置插入值
+                new_row.insert(position, value)
             result.append(new_row)
         
         return result
@@ -249,17 +254,39 @@ class TableDataTransformer:
             "operation": "formula=B{row}/A{row}*1000",  # {row}表示当前行号
             "decimal": 1
         }
+        
+        配置示例 - 插入新列:
+        {
+            "type": "calculate",
+            "column": 4,  # 插入位置
+            "operation": "formula=B{row}/A{row}*1000",
+            "decimal": 1,
+            "insert": true  # 插入新列，不覆盖原有数据
+        }
         """
         column = config.get('column')
         operation = config.get('operation', '')
         decimal = config.get('decimal', None)
         function = config.get('function', None)
-        logger.debug(f"Calculating column {column} with operation {operation} and decimal {decimal}")
+        insert = config.get('insert', False)  # 是否插入新列
+        
+        logger.debug(f"Calculating column {column} with operation {operation}, decimal {decimal}, insert {insert}")
         result = [row[:] for row in data]
         
         if operation.startswith('formula='):
             logger.debug(f"Applying formula calculation on column {column} with operation {operation}")
             formula = operation.split('=', 1)[1]
+            
+            # 如果需要插入新列，先扩展所有行
+            if insert and column is not None:
+                for row in result:
+                    # 在指定位置插入空值，扩展现有行
+                    if len(row) < column:
+                        # 如果行长度不够，先扩展到 column 长度
+                        row.extend([''] * (column - len(row)))
+                    # 在指定位置插入空值
+                    row.insert(column, '')
+            
             for row_idx, row in enumerate(result):
                 try:
                     # 构建变量字典
@@ -274,6 +301,11 @@ class TableDataTransformer:
                     # 使用安全评估替代 eval
                     evaluated_value = safe_eval_formula(formula_exp, variables)
                     logger.debug(f"Evaluated value for row {row_idx}, column {column}: {evaluated_value}")
+                    
+                    # 确保行有足够长度
+                    while len(row) <= column:
+                        row.append('')
+                    
                     row[column] = self._format_number(evaluated_value, decimal)
                 except SafeEvalError as e:
                     logger.warning(f"Safe eval error for row {row_idx}: {e}")

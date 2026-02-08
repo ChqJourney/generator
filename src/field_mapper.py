@@ -10,6 +10,35 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+def parse_checkbox_value(value: Any) -> bool:
+    """
+    解析 checkbox 值，转换为布尔值
+    
+    Args:
+        value: checkbox 值，可能是 {"type": "checkbox", "value": "true/false"} 格式
+               或直接的字符串/布尔值
+    
+    Returns:
+        bool: True 表示勾选，False 表示未勾选
+    """
+    if value is None:
+        return False
+    
+    # 检查是否是标准 checkbox 格式 {"type": "checkbox", "value": "..."}
+    if isinstance(value, dict) and value.get('type') == 'checkbox':
+        value_str = value.get('value', 'false')
+        if isinstance(value_str, str):
+            return value_str.lower() == 'true'
+        return bool(value_str)
+    
+    # 如果是字符串
+    if isinstance(value, str):
+        return value.lower() == 'true'
+    
+    # 其他情况直接转布尔值
+    return bool(value)
+
+
 def load_json(path: str) -> Dict:
     """加载JSON文件"""
     with open(path, 'r', encoding='utf-8') as f:
@@ -100,8 +129,13 @@ def generate_operations(config: Dict, report_data: Dict) -> Dict:
         value = get_value_by_path(report_data, source_field)
         
         if value is None:
-            logger.warning(f"Value not found for path '{source_field}', skipping {placeholder}")
-            continue
+            # 对于 checkbox 类型，如果没有值则默认为 false
+            if field_type == 'checkbox':
+                value = False
+                logger.info(f"Checkbox value not found for path '{source_field}', defaulting to False for {placeholder}")
+            else:
+                logger.warning(f"Value not found for path '{source_field}', skipping {placeholder}")
+                continue
         
         if field_type == 'text':
             operations.append({
@@ -147,11 +181,23 @@ def generate_operations(config: Dict, report_data: Dict) -> Dict:
             }
             
             # 添加可选参数
-            for key in ['transformations', 'row_strategy', 'skip_columns', 'header_rows']:
+            for key in ['transformations', 'row_strategy', 'skip_columns', 'header_rows','text_insert']:
                 if key in mapping:
                     operation[key] = mapping[key]
             
             operations.append(operation)
+        
+        elif field_type == 'checkbox':
+            # 解析 checkbox 值
+            checkbox_value = parse_checkbox_value(value)
+            
+            # checkbox 使用 template_field 作为 checkbox 名称
+            operations.append({
+                'type': 'checkbox',
+                'checkbox_mapping': {
+                    placeholder: checkbox_value
+                }
+            })
     
     return {'operations': operations}
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This project automates the generation of Word reports by inserting extracted data into pre-designed Word templates. The system supports text, table, and image insertion with placeholder-based templating.
+This project automates the generation of Word reports by inserting extracted data into pre-designed Word templates. The system supports text, table, image, and checkbox operations with placeholder-based templating.
 
 ## Architecture
 
@@ -49,7 +49,11 @@ Hierarchical data structure containing all report data.
   "metadata": {
     "report_no": "RPT-001",
     "issue_date": "2024-03-15",
-    "applicant_name": "..."
+    "applicant_name": "...",
+    "containing_product": {
+      "type": "checkbox",
+      "value": "true"
+    }
   },
   "extracted_data": {
     "model_identifier": "LED-100W",
@@ -92,6 +96,11 @@ Master configuration defining how data maps to template placeholders.
       "type": "image",
       "width": 4.0,
       "alignment": "center"
+    },
+    {
+      "template_field": "containing_product",
+      "source_field": "metadata.containing_product",
+      "type": "checkbox"
     }
   ]
 }
@@ -101,6 +110,7 @@ Master configuration defining how data maps to template placeholders.
 - **text**: Simple text replacement
 - **table**: Table insertion with optional Excel data source and transformations
 - **image**: Image insertion with dimensions and alignment
+- **checkbox**: Form checkbox state control (checked/unchecked)
 
 **Table-Specific Parameters:**
 - `table_template_path`: Path to table template Word document
@@ -169,10 +179,16 @@ Core engine that applies operations to Word templates.
   - Validates dimensions (must be Length objects)
   - Handles alignment (left/center/right)
 
+- `CheckboxInserter(ContentInserter)`: Handles form checkbox state updates
+  - `insert(checkbox_mapping)`: Updates checkbox states
+  - Checkbox mapping format: `{"checkbox_name": True/False}`
+  - Auto-sets unchecked state for missing checkboxes
+
 - `DocxTemplateProcessor`: Main processor class
   - `add_text(placeholder, value, location)`: Queues text text operation
   - `add_table(placeholder, table_template_path, table_data, offset_x, offset_y)`: Queues table operation
   - `add_image(placeholder, image_paths, width, height, alignment, location)`: Queues image operation
+  - `add_checkboxes(checkbox_mapping)`: Queues checkbox update operation
   - `get_all_placeholders() -> List[str]`: Extracts all placeholders from template
   - `process()`: Executes all queued operations and saves document
 
@@ -218,21 +234,24 @@ Excel source file containing photometric measurement data.
 python src/report_data_validator.py --report config/report.json --config config/report_config.json
 python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
 
-# Step 2: Process template
+# Step 2: Process template (checkbox handling is automatic)
 python src/process_template.py \
   --template report_templates/production_template.docx \
   --operations operations.json \
+  --calculated-report config/report.json \
   --output output/report.docx
 ```
+
+**Note:** Checkbox operations are automatically handled - template checkboxes not in operations.json are set to false.
 
 ### Data Flow
 
 1. **Data**: Single `report.json` with hierarchical structure (metadata, extracted_data, calculated_data)
 2. **Configuration**: `report_config.json` defines field mappings and transformations
 3. **Validation**: Run validators to check data and template before processing
-4. **Operation Generation**: `field_mapper.py` creates operation array
-5. **Template Processing**: `processor.py` applies operations to Word template
-6. **Output**: Generated report with filled placeholders
+4. **Operation Generation**: `field_mapper.py` creates operation array (including checkbox operations)
+5. **Template Processing**: `processor.py` applies operations to Word template (auto-sets unchecked checkboxes to false)
+6. **Output**: Generated report with filled placeholders and correct checkbox states
 
 For detailed architecture and component documentation, see [AGENTS.md](AGENTS.md).
 
@@ -288,6 +307,22 @@ For detailed architecture and component documentation, see [AGENTS.md](AGENTS.md
 **Image Parameters:**
 - `width`, `height`: Numeric values converted to `Inches` objects
 - `alignment`: "left", "center", or "right"
+
+#### Checkbox Update
+```json
+{
+  "type": "checkbox",
+  "checkbox_mapping": {
+    "containing_product": true,
+    "directional": false
+  }
+}
+```
+
+**Checkbox Behavior:**
+- Template checkboxes not in `checkbox_mapping` are automatically set to `false`
+- Data format in `report.json`: `{"type": "checkbox", "value": "true/false"}`
+- Missing checkbox data defaults to `false`
 
 ## Error Handling
 
@@ -371,7 +406,7 @@ pytest tests/test_calculator.py
 ```
 
 ### Test Workflow
-1. Update `config/report.json` with test data
+1. Update `config/report_data.json` with test data
 2. Run validators to check data and template
 3. Run `field_mapper.py` to generate operations
 4. Run `process_template.py` to generate output

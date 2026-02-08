@@ -48,6 +48,21 @@
       "type": "text"
     },
     {
+      "template_field": "containing_product",
+      "source_field": "metadata.containing_product",
+      "type": "checkbox"
+    },
+    {
+      "template_field":"mains",
+      "source_field":"metadata.mains",
+      "type":"checkbox"
+    },
+    {
+      "template_field":"not_mains",
+      "source_field":"metadata.not_mains",
+      "type":"checkbox"
+    },
+    {
       "template_field": "test_mode",
       "source_field": "metadata.test_mode",
       "type": "text"
@@ -78,37 +93,133 @@
       "type": "text"
     },
     {
+      "template_field": "photometric_data_table",
+      "source_field": "extracted_data.photometric_data_table",
+      "table_template_path": "report_templates/tables/photometric_table_template.docx",
+      "type": "table",
+      "row_strategy": "fixed_rows",
+      "header_rows": 2,
+      "skip_columns": [0,1],
+      "text_insert": [
+        {"column":0,"row":2,"value":"extracted_data.light_source_type"}
+      ],
+      "transformations": [
+        {
+          "type":"calculate",
+           "column": 4, 
+            "operation": "formula=D{row}/B{row}",  
+            "decimal": 1,
+            "insert":true
+        },
+        {
+          "type": "calculate",
+          "column": 4,
+          "operation": "average",
+          "function": "lambda x: f'{x:.2f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 0,
+          "operation": "average",
+          "function": "lambda x: f'{x:.2f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 1,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 2,
+          "operation": "average",
+          "function": "lambda x: f'{x:.2f}'"
+        },
+         {
+          "type": "calculate",
+          "column": 3,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 5,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        {
+          "type": "calculate",
+          "column": 6,
+          "operation": "average",
+          "function": "lambda x: f'{x:.0f}'"
+        },
+        {
+          "type":"calculate",
+          "column": 7,
+          "operation": "average",
+          "function": "lambda x: f'{x:.0f}'"
+        },
+         {
+          "type":"calculate",
+          "column": 8,
+          "operation": "average",
+          "function": "lambda x: f'{x:.3f}'"
+        },
+        {
+          "type":"calculate",
+          "column": 9,
+          "operation": "average",
+          "function": "lambda x: f'{x:.3f}'"
+        },
+        
+        {
+          "type":"calculate",
+          "column": 10,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        
+        {
+          "type":"calculate",
+          "column": 11,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        
+        {
+          "type":"calculate",
+          "column": 12,
+          "operation": "average",
+          "function": "lambda x: f'{x:.1f}'"
+        },
+        {
+          "type":"calculate",
+          "column": 13,
+          "operation": "average",
+          "function": "lambda x: f'{x:.2f}'"
+        }
+        
+      ]
+    },
+    {
       "template_field": "long_term_table",
       "source_field": "extracted_data.long_term_table",
       "table_template_path": "report_templates/tables/life_test_table_template.docx",
       "type": "table",
       "row_strategy": "fixed_rows",
-      "header_rows": 2,
+      "header_rows": 4,
+      "skip_columns": [0,1],
       "transformations": [
         {
-          "type": "custom_transform",
-          "transformer": "life_table_transformer",
-          "calculate_columns": [],
-          "formulas": {},
-          "average_columns": [
-            1,
-            2,
-            3,
-            4
-          ],
-          "format_rules": {
-            "1": [
-              {
-                "condition": "x >= 1000",
-                "format": "{:.0f}"
-              },
-              {
-                "condition": "x < 1000",
-                "format": "{:.1f}"
-              }
-            ]
-          }
+          "type":"add-column",
+          "position": 0,
+          "source": "extracted_data:light_source_type" 
+        },
+        {
+          "type":"skip-columns",
+          "columns": [0]
         }
+        
       ]
     },
     {
@@ -176,7 +287,7 @@
     },
     {
       "template_field": "Pon",
-      "source_field": "calculated_data.Pon",
+      "source_field": "extracted_data.Pon",
       "type": "text"
     },
     {
@@ -221,19 +332,10 @@
     },
     {
       "template_field": "light_source_type",
-      "source_field": "calculated_data.light_source_type",
+      "source_field": "extracted_data.light_source_type",
       "type": "text"
     },
-    {
-      "template_field": "photometric_data",
-      "source_field": "extracted_data.photometric_data",
-      "table_template_path": "report_templates/tables/life_test_table_template.docx",
-      "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
-      "transformations": []
-      
-    },
+    
     {
       "template_field": "userful_luminous_flux",
       "source_field": "calculated_data.userful_luminous_flux",

@@ -9,6 +9,18 @@
     "sample_received_date": "2024-03-01",
     "test_period": "2024-03-01 to 2024-03-10",
     "test_item_type": "LED Luminaire",
+    "containing_product":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "mains": {
+      "type":"checkbox",
+      "value":"true"
+    },
+    "not_mains": {
+      "type":"checkbox",
+      "value":"false"
+    },
     "removable_or_replaceable_module": "No",
     "replaceable_or_non_replaceable_control_gear": "Non-replaceable",
     "light_source_tech": "LED",
@@ -29,32 +41,14 @@
     "controlgear_model":"df-df",
     "cct": "4000K",
     "standby_power": "0.344W",
-    "containing_product":{
-      "type":"checkbox",
-      "value":"true"
-    },
+    "Pon": "10.5W",
     "images": [
       "data_files/1.jpg",
       "data_files/2.jpg"
     ],
-    "photometric_data": {
+    "photometric_data_table": {
       "type": "table",
       "value": [
-        [
-          "Current(A)",
-          "Power Pon(W)",
-          "Disp. Factor",
-          "Total Luminous Flux Φ360(lm)",
-          "CCT (K)",
-          "CRI(Ra)",
-          "R9",
-          "X",
-          "Y",
-          "SDCM",
-          "Flicker Pst LM",
-          "Stroboscopic Effect SVM",
-          "Standby Power Psb(W)"
-        ],
         [
           "0.09",
           "10.0",
@@ -260,10 +254,11 @@
   "calculated_data": {
     "sample_size": "5 units",
     "tbd_remarks": "except 3600hrs Lumen Maintenance test",
+    "efficacy":"150 lm/w",
+    "energy_class":"D",
     "efficency_of_cg": "0.92",
     "ratings": "230V, 50Hz",
     "required_maintenance": "89.4%",
-    "Pon": "not set",
     "beam_table": "not set",
     "brand_name": "not set",
     "controlgear_model": "not set",
@@ -272,7 +267,6 @@
     "directional_info": "not set",
     "eei_class_table": "not set",
     "light_distribution_image": "not set",
-    "light_source_type": "not set",
     "photometric_data_table": "not set",
     "userful_luminous_flux": "not set",
     "v.1.a": "not set",
