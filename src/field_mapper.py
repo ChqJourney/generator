@@ -107,7 +107,8 @@ def generate_operations(config: Dict, report_data: Dict) -> Dict:
             operations.append({
                 'type': 'text',
                 'placeholder': placeholder,
-                'value': str(value)
+                'value': str(value),
+                'location': mapping.get('location', 'body')
             })
         
         elif field_type == 'image':
@@ -124,7 +125,8 @@ def generate_operations(config: Dict, report_data: Dict) -> Dict:
                 'image_paths': image_paths,
                 'width': mapping.get('width'),
                 'height': mapping.get('height'),
-                'alignment': mapping.get('alignment')
+                'alignment': mapping.get('alignment'),
+                'location': mapping.get('location', 'body')
             })
         
         elif field_type == 'table':

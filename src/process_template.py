@@ -49,10 +49,28 @@ def load_calculated_report(report_path: Path) -> dict:
 def get_nested_value(data: dict, path: str, default=None):
     """
     获取嵌套字典的值，支持点号路径如 'metadata.report_no'
+    也支持字段名中包含点号，如 'calculated_data.v.II.1.a.1'
     """
-    keys = path.split('.')
+    # 策略：尝试最大匹配（支持字段名中包含点号）
+    parts = path.split('.')
+    
+    for split_idx in range(1, len(parts)):
+        first_key = '.'.join(parts[:split_idx])
+        rest_key = '.'.join(parts[split_idx:])
+        
+        if first_key in data:
+            current = data[first_key]
+            # 尝试将剩余部分作为完整键
+            if isinstance(current, dict) and rest_key in current:
+                return current[rest_key]
+            # 或者递归处理剩余部分
+            result = get_nested_value(current, rest_key, default)
+            if result is not default:
+                return result
+    
+    # 默认：按标准点号分割处理
     value = data
-    for key in keys:
+    for key in parts:
         if isinstance(value, dict) and key in value:
             value = value[key]
         else:

@@ -409,6 +409,28 @@ python src/process_template.py \
 
 ---
 
+## Error Handling
+
+### Common Errors
+
+1. **PlaceholderNotFoundError**
+   - Placeholder not found in specified location
+   - Check template for correct placeholder name
+
+2. **InvalidLocationError**
+   - Invalid location specified for operation
+   - Valid locations: body, header, footer
+
+3. **DocxTemplateError**
+   - Generic processor error
+   - Check error message for details
+
+4. **FileNotFoundError**
+   - Template, image, or Excel file not found
+   - Verify file paths in config
+
+---
+
 ## Common Tasks for AI Agents
 
 ### Adding a New Field Mapping

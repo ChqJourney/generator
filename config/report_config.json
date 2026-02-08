@@ -43,43 +43,8 @@
       "type": "text"
     },
     {
-      "template_field": "test_item_type",
-      "source_field": "metadata.test_item_type",
-      "type": "text"
-    },
-    {
-      "template_field": "removable_or_replaceable_module",
-      "source_field": "metadata.removable_or_replaceable_module",
-      "type": "text"
-    },
-    {
-      "template_field": "replaceable_or_non_replaceable_control_gear",
-      "source_field": "metadata.replaceable_or_non_replaceable_control_gear",
-      "type": "text"
-    },
-    {
       "template_field": "light_source_tech",
       "source_field": "metadata.light_source_tech",
-      "type": "text"
-    },
-    {
-      "template_field": "directional_or_non_directional",
-      "source_field": "metadata.directional_or_non_directional",
-      "type": "text"
-    },
-    {
-      "template_field": "connected_or_not",
-      "source_field": "metadata.connected_or_not",
-      "type": "text"
-    },
-    {
-      "template_field": "mains_or_not",
-      "source_field": "metadata.mains_or_not",
-      "type": "text"
-    },
-    {
-      "template_field": "color_tuneable",
-      "source_field": "metadata.color_tuneable",
       "type": "text"
     },
     {
@@ -98,21 +63,6 @@
       "type": "text"
     },
     {
-      "template_field": "test_at",
-      "source_field": "metadata.test_at",
-      "type": "text"
-    },
-    {
-      "template_field": "model_identifier",
-      "source_field": "extracted_data.model_identifier",
-      "type": "text"
-    },
-    {
-      "template_field": "rated_wattage",
-      "source_field": "extracted_data.rated_wattage",
-      "type": "text"
-    },
-    {
       "template_field": "useful_luminous_flux",
       "source_field": "extracted_data.useful_luminous_flux",
       "type": "text"
@@ -128,40 +78,6 @@
       "type": "text"
     },
     {
-      "template_field": "photometric_data",
-      "source_field": "extracted_data.photometric_data",
-      "table_template_path": "report_templates/tables/photometric_table_template.docx",
-      "type": "table",
-      "row_strategy": "fixed_rows",
-      "header_rows": 2,
-      "skip_columns": [1],
-      "transformations": [
-        {
-          "type": "skip_columns",
-          "columns": [1]
-        },
-        {
-          "type": "custom_transform",
-          "transformer": "photometric_data_transformer",
-          "calculate_columns": [5],
-          "formulas": {
-            "5": "E{row}/C{row}"
-          },
-          "average_columns": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
-          "format_rules": {
-            "2": [{"condition": "x < 100", "format": "{:.2f}"}],
-            "4": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}],
-            "5": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
-          },
-          "average_format_rules": {
-            "2": [{"condition": "x < 100", "format": "{:.2f}"}],
-            "4": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}],
-            "5": [{"condition": "x >= 100", "format": "{:.1f}"}, {"condition": "x < 100", "format": "{:.2f}"}]
-          }
-        }
-      ]
-    },
-    {
       "template_field": "long_term_table",
       "source_field": "extracted_data.long_term_table",
       "table_template_path": "report_templates/tables/life_test_table_template.docx",
@@ -174,9 +90,23 @@
           "transformer": "life_table_transformer",
           "calculate_columns": [],
           "formulas": {},
-          "average_columns": [1, 2, 3, 4],
+          "average_columns": [
+            1,
+            2,
+            3,
+            4
+          ],
           "format_rules": {
-            "1": [{"condition": "x >= 1000", "format": "{:.0f}"}, {"condition": "x < 1000", "format": "{:.1f}"}]
+            "1": [
+              {
+                "condition": "x >= 1000",
+                "format": "{:.0f}"
+              },
+              {
+                "condition": "x < 1000",
+                "format": "{:.1f}"
+              }
+            ]
           }
         }
       ]
@@ -193,7 +123,10 @@
       "source_field": "calculated_data.ratings",
       "type": "text",
       "function": "concat",
-      "args": ["metadata.mains_or_not", "metadata.connected_or_not"],
+      "args": [
+        "metadata.mains_or_not",
+        "metadata.connected_or_not"
+      ],
       "separator": ", "
     },
     {
@@ -201,14 +134,20 @@
       "source_field": "calculated_data.efficacy",
       "type": "text",
       "function": "calculate_energy_efficacy",
-      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+      "args": [
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
+      ]
     },
     {
       "template_field": "energy_class",
       "source_field": "calculated_data.energy_class",
       "type": "text",
       "function": "calculate_energy_class_rating",
-      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+      "args": [
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
+      ]
     },
     {
       "template_field": "sample_size",
@@ -221,25 +160,518 @@
       "type": "text"
     },
     {
-      "template_field": "standards_applied",
-      "source_field": "calculated_data.standards_applied",
-      "type": "text"
-    },
-    {
-      "template_field": "PonMax",
-      "source_field": "calculated_data.PonMax",
-      "type": "text"
-    },
-    {
       "template_field": "required_maintenance",
       "source_field": "calculated_data.required_maintenance",
       "type": "text",
       "function": "calculate_percentage",
-      "args": ["extracted_data.rated_wattage", "extracted_data.useful_luminous_flux"]
+      "args": [
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
+      ]
     },
     {
       "template_field": "efficency_of_cg",
       "source_field": "calculated_data.efficency_of_cg",
+      "type": "text"
+    },
+    {
+      "template_field": "Pon",
+      "source_field": "calculated_data.Pon",
+      "type": "text"
+    },
+    {
+      "template_field": "beam_table",
+      "source_field": "calculated_data.beam_table",
+      "type": "text"
+    },
+    {
+      "template_field": "brand_name",
+      "source_field": "calculated_data.brand_name",
+      "type": "text"
+    },
+    {
+      "template_field": "controlgear_model",
+      "source_field": "calculated_data.controlgear_model",
+      "type": "text"
+    },
+    {
+      "template_field": "controlgear_table",
+      "source_field": "calculated_data.controlgear_table",
+      "type": "text"
+    },
+    {
+      "template_field": "detailed_test_condition",
+      "source_field": "calculated_data.detailed_test_condition",
+      "type": "text"
+    },
+    {
+      "template_field": "directional_info",
+      "source_field": "calculated_data.directional_info",
+      "type": "text"
+    },
+    {
+      "template_field": "eei_class_table",
+      "source_field": "calculated_data.eei_class_table",
+      "type": "text"
+    },
+    {
+      "template_field": "light_distribution_image",
+      "source_field": "calculated_data.light_distribution_image",
+      "type": "text"
+    },
+    {
+      "template_field": "light_source_type",
+      "source_field": "calculated_data.light_source_type",
+      "type": "text"
+    },
+    {
+      "template_field": "photometric_data",
+      "source_field": "extracted_data.photometric_data",
+      "table_template_path": "report_templates/tables/life_test_table_template.docx",
+      "type": "table",
+      "row_strategy": "fixed_rows",
+      "header_rows": 2,
+      "transformations": []
+      
+    },
+    {
+      "template_field": "userful_luminous_flux",
+      "source_field": "calculated_data.userful_luminous_flux",
+      "type": "text"
+    },
+    {
+      "template_field": "v.1.a",
+      "source_field": "calculated_data.v.1.a",
+      "type": "text"
+    },
+    {
+      "template_field": "v.1.b.1",
+      "source_field": "calculated_data.v.1.b.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.1.b.2",
+      "source_field": "calculated_data.v.1.b.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.15.1",
+      "source_field": "calculated_data.v.15.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.15.2",
+      "source_field": "calculated_data.v.15.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.15.3",
+      "source_field": "calculated_data.v.15.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.15.4",
+      "source_field": "calculated_data.v.15.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.3",
+      "source_field": "calculated_data.v.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a",
+      "source_field": "calculated_data.v.II.1.a",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.1",
+      "source_field": "calculated_data.v.II.1.a.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.10",
+      "source_field": "calculated_data.v.II.1.a.10",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.11",
+      "source_field": "calculated_data.v.II.1.a.11",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.12",
+      "source_field": "calculated_data.v.II.1.a.12",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.13",
+      "source_field": "calculated_data.v.II.1.a.13",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.14",
+      "source_field": "calculated_data.v.II.1.a.14",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.15",
+      "source_field": "calculated_data.v.II.1.a.15",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.2",
+      "source_field": "calculated_data.v.II.1.a.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.3",
+      "source_field": "calculated_data.v.II.1.a.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.4",
+      "source_field": "calculated_data.v.II.1.a.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.5",
+      "source_field": "calculated_data.v.II.1.a.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.6",
+      "source_field": "calculated_data.v.II.1.a.6",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.7",
+      "source_field": "calculated_data.v.II.1.a.7",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.8",
+      "source_field": "calculated_data.v.II.1.a.8",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.a.9",
+      "source_field": "calculated_data.v.II.1.a.9",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b",
+      "source_field": "calculated_data.v.II.1.b",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b.1",
+      "source_field": "calculated_data.v.II.1.b.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b.2",
+      "source_field": "calculated_data.v.II.1.b.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b.3",
+      "source_field": "calculated_data.v.II.1.b.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b.4",
+      "source_field": "calculated_data.v.II.1.b.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.b.5",
+      "source_field": "calculated_data.v.II.1.b.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2",
+      "source_field": "calculated_data.v.II.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.1",
+      "source_field": "calculated_data.v.II.2.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.2",
+      "source_field": "calculated_data.v.II.2.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.3",
+      "source_field": "calculated_data.v.II.2.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.4",
+      "source_field": "calculated_data.v.II.2.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.5",
+      "source_field": "calculated_data.v.II.2.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.6",
+      "source_field": "calculated_data.v.II.2.6",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.7",
+      "source_field": "calculated_data.v.II.2.7",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.8",
+      "source_field": "calculated_data.v.II.2.8",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.2.9",
+      "source_field": "calculated_data.v.II.2.9",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.a",
+      "source_field": "calculated_data.v.II.3.a",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.a.1",
+      "source_field": "calculated_data.v.II.3.a.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.a.2",
+      "source_field": "calculated_data.v.II.3.a.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.a.3",
+      "source_field": "calculated_data.v.II.3.a.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b",
+      "source_field": "calculated_data.v.II.3.b",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1",
+      "source_field": "calculated_data.v.II.3.b.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.1",
+      "source_field": "calculated_data.v.II.3.b.1.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.10",
+      "source_field": "calculated_data.v.II.3.b.1.10",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.11",
+      "source_field": "calculated_data.v.II.3.b.1.11",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.12",
+      "source_field": "calculated_data.v.II.3.b.1.12",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.13",
+      "source_field": "calculated_data.v.II.3.b.1.13",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.14",
+      "source_field": "calculated_data.v.II.3.b.1.14",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.15",
+      "source_field": "calculated_data.v.II.3.b.1.15",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.16",
+      "source_field": "calculated_data.v.II.3.b.1.16",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.17",
+      "source_field": "calculated_data.v.II.3.b.1.17",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.18",
+      "source_field": "calculated_data.v.II.3.b.1.18",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.2",
+      "source_field": "calculated_data.v.II.3.b.1.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.3",
+      "source_field": "calculated_data.v.II.3.b.1.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.4",
+      "source_field": "calculated_data.v.II.3.b.1.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.5",
+      "source_field": "calculated_data.v.II.3.b.1.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.6",
+      "source_field": "calculated_data.v.II.3.b.1.6",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.7",
+      "source_field": "calculated_data.v.II.3.b.1.7",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.8",
+      "source_field": "calculated_data.v.II.3.b.1.8",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.1.9",
+      "source_field": "calculated_data.v.II.3.b.1.9",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.2",
+      "source_field": "calculated_data.v.II.3.b.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.2.1",
+      "source_field": "calculated_data.v.II.3.b.2.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.2.2",
+      "source_field": "calculated_data.v.II.3.b.2.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.2.3",
+      "source_field": "calculated_data.v.II.3.b.2.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.4",
+      "source_field": "calculated_data.v.II.3.b.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.5",
+      "source_field": "calculated_data.v.II.3.b.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.6",
+      "source_field": "calculated_data.v.II.3.b.6",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.7",
+      "source_field": "calculated_data.v.II.3.b.7",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.b.8",
+      "source_field": "calculated_data.v.II.3.b.8",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c",
+      "source_field": "calculated_data.v.II.3.c",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1",
+      "source_field": "calculated_data.v.II.3.c.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.1",
+      "source_field": "calculated_data.v.II.3.c.1.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.2",
+      "source_field": "calculated_data.v.II.3.c.1.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.3",
+      "source_field": "calculated_data.v.II.3.c.1.3",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.4",
+      "source_field": "calculated_data.v.II.3.c.1.4",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.5",
+      "source_field": "calculated_data.v.II.3.c.1.5",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.3.c.1.6",
+      "source_field": "calculated_data.v.II.3.c.1.6",
+      "type": "text"
+    },
+    {
+      "template_field": "zone_table",
+      "source_field": "calculated_data.zone_table",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.as",
+      "source_field": "calculated_data.v.II.1.as",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.as.1",
+      "source_field": "calculated_data.v.II.1.as.1",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.as.2",
+      "source_field": "calculated_data.v.II.1.as.2",
+      "type": "text"
+    },
+    {
+      "template_field": "v.II.1.as.3",
+      "source_field": "calculated_data.v.II.1.as.3",
+      "type": "text"
+    },
+    {
+      "template_field": "Ponmax",
+      "source_field": "calculated_data.Ponmax",
       "type": "text"
     }
   ],

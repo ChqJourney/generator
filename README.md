@@ -7,89 +7,63 @@ This project automates the generation of Word reports by inserting extracted dat
 ## Architecture
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  data.json     │    │  metadata.json   │    │report_config.json│   │  Word Template │
-│  (Product Data)│    │  (Report Meta)  │    │  (Config)       │   │  .docx         │
-└────────┬────────┘    └────────┬┬─────────┘    └────────┬────────┘    └────────┬────────┘
-         │                     │  │                    │                     │
-         └──────────────────────┘  └────────────────────┘                     │
-                               │                                          │
-                               ▼                                          ▼
-                    ┌──────────────────────┐                  ┌─────────────────┐
-                    │  field_mapper.py    │                  │ process_template│
-                    │  (Generate Ops)    │◄─────────────────│  .py          │
-                    └────────┬───────────┘                  └─────────────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │  operations.json    │
-                    │  (Op Array)       │
-                    └────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │  processor.py       │
-                    │  (Apply Ops)       │
-                    └────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │  Output .docx      │
-                    └──────────────────────┘
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│  report.json   │         │report_config.json│        │  Word Template │
+│  (Hierarchical │         │  (Field Mappings)│        │  .docx         │
+│   Data)        │         │                 │        │                │
+└────────┬────────┘         └────────┬────────┘        └────────┬────────┘
+         │                          │                          │
+         │                          ▼                          │
+         │               ┌──────────────────────┐              │
+         │               │  field_mapper.py    │              │
+         │               │  (Generate Ops)    │              │
+         │               └────────┬───────────┘              │
+         │                          │                          │
+         ▼                          ▼                          ▼
+┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
+│  validator.py       │  │  operations.json    │  │  process_template.py │
+│  (Validation)       │  │  (Operation Array)  │  │  (CLI Wrapper)       │
+└──────────────────────┘  └────────┬───────────┘  └──────────┬───────────┘
+                                   │                         │
+                                   ▼                         ▼
+                          ┌──────────────────────┐
+                          │  processor.py       │
+                          │  (Apply Operations) │
+                          └────────┬───────────┘
+                                   │
+                                   ▼
+                          ┌──────────────────────┐
+                          │  Output .docx      │
+                          └──────────────────────┘
 ```
 
 ## Core Components
 
 ### 1. Configuration Files
 
-#### `config/data.json`
-Contains extracted product data from various sources (AI, OCR, etc.).
+#### `config/report.json`
+Hierarchical data structure containing all report data.
 
 ```json
 {
-  "targets": [
-    {
-      "name": "photometric_data",
-      "type": "table",
-      "value": {
-        "source_id": "TDS.xlsx|100W-5000K",
-        "start_row": 7,
-        "mapping": [...]
-      }
-    },
-    {
-      "name": "model_identifier",
-      "type": "str",
-      "value": "230V-100W 5000K"
-    }
-  ]
+  "metadata": {
+    "report_no": "RPT-001",
+    "issue_date": "2024-03-15",
+    "applicant_name": "..."
+  },
+  "extracted_data": {
+    "model_identifier": "LED-100W",
+    "rated_wattage": "100",
+    "photometric_data": {...}
+  },
+  "calculated_data": {
+    "energy_class_rating": "A+",
+    "energy_efficacy": "100.00"
+  }
 }
 ```
 
-**Key Fields:**
-- `name`: Field identifier
-- `type`: Data type (str, table, images)
-- `value`: Field value (can be simple value, array, or complex object with `source_id`)
-
-#### `config/metadata.json`
-Report metadata like report number, issue date.
-
-```json
-{
-  "fields": [
-    {
-      "name": "report_no",
-      "description": "报告编号",
-      "value": "250400343HZH-001"
-    },
-    {
-      "name": "issue_date",
-      "description": "发布日期",
-      "default": "current_date"
-    }
-  ]
-}
-```
+**Field Access**: Use dot-notation paths like `metadata.report_no`, `extracted_data.rated_wattage`.
 
 #### `config/report_config.json`
 Master configuration defining how data maps to template placeholders.
@@ -97,28 +71,24 @@ Master configuration defining how data maps to template placeholders.
 ```json
 {
   "template_path": "report_templates/report_template1.docx",
-  "output": "output/",
+  "output_dir": "output/",
   "field_mappings": [
     {
       "template_field": "report_no",
-      "source": "metadata",
-      "source_field": "report_no",
+      "source_field": "metadata.report_no",
       "type": "text"
     },
     {
       "template_field": "photometric_data",
-      "source": "extracted_data",
-      "source_field": "photometric_data",
+      "source_field": "extracted_data.photometric_data",
       "type": "table",
-      "headers": [...],
-      "table_template_path": "report_templates/tables/photometric_table_template.docx",
-      "offset_x": 3,
-      "offset_y": 3
+      "table_template_path": "report_templates/photometric_table_template.docx",
+      "row_strategy": "fixed_rows",
+      "header_rows": 2
     },
     {
       "template_field": "images",
-      "source": "extracted_data",
-      "source_field": "images",
+      "source_field": "extracted_data.images",
       "type": "image",
       "width": 4.0,
       "alignment": "center"
@@ -129,14 +99,14 @@ Master configuration defining how data maps to template placeholders.
 
 **Field Mapping Types:**
 - **text**: Simple text replacement
-- **table**: Complex table insertion with Excel data source
+- **table**: Table insertion with optional Excel data source and transformations
 - **image**: Image insertion with dimensions and alignment
 
 **Table-Specific Parameters:**
-- `headers`: Column definitions with `name`, `type` (copy/calculate), `digit` (precision)
 - `table_template_path`: Path to table template Word document
-- `offset_x`, `offset_y`: Row/column offset for data insertion (positive = right/down shift)
-- `source_id`: Excel data source in format `"filename|sheetname"`
+- `row_strategy`: `"fixed_rows"` (fill existing) or `"dynamic_rows"` (add/remove rows)
+- `header_rows`: Number of header rows to skip
+- `transformations`: Data transformation rules (skip_columns, calculate, format, etc.)
 
 ### 2. Source Scripts
 
@@ -145,32 +115,23 @@ Converts field mappings to operation array for processor.
 
 **Key Functions:**
 
-- `generate_operations(config, metadata, extracted_data) -> Dict`
-  - Main function that generates operations from config and data
-  - Iterates through `field_mappings` and creates operations for each
+- `generate_operations(config, report_data) -> Dict`
+  - Main function that generates operations from config and report data
+  - Supports dot-notation field access (e.g., `metadata.report_no`)
 
-- `extract_field_value(data, field_name) -> Any`
-  - Extracts field value from extracted_data
-  - Handles both dict and list structures
+- `get_value_by_path(data, path) -> Any`
+  - Extracts field value using dot-notation path
+  - Handles hierarchical data structure
 
-- `build_table_data(value, headers) -> List[List[str]]`
+- `build_table_data_from_excel(value, target_headers) -> List[List[str]]`
   - Builds table data from Excel source
-  - Calls `get_xlsx_to_list` for data extraction
-
-- `get_xlsx_to_list(file_path, sheet_name, start_row, mapping, headers) -> List[List[str]]`
-  - Reads Excel file and extracts specified columns
-  - Applies column mapping based on header configuration
-  - Handles header normalization and missing columns
-
-- `check_type(data) -> bool`
-  - Validates if data is a proper 2D string array
+  - Supports external data references
 
 **Usage:**
 ```bash
 python src/field_mapper.py \
   --config config/report_config.json \
-  --metadata config/metadata.json \
-  --extracted_data config/data.json \
+  --report config/report.json \
   --output operations.json
 ```
 
@@ -226,36 +187,13 @@ CLI wrapper for processor.py.
 
 Converts operations.json to processor calls with proper type conversions.
 
-**Key Features:**
-- Converts numeric width/height to `Inches` objects
-- Passes offset_x, offset_y as integers
-- Validates template and operations file existence
-
 **Usage:**
 ```bash
 python src/process_template.py \
   --template report_templates/report_template1.docx \
   --operations operations.json \
+  --calculated-report config/report.json \
   --output output/report.docx
-```
-
-#### `src/validate_placeholders.py`
-Validation tool for Word document templates.
-
-**Validations:**
-1. Checks if placeholders are in correct locations (paragraph vs table)
-2. Verifies all field_mappings exist in template
-3. Identifies extra placeholders not in config
-
-**Features:**
-- Searches body, headers (all 15 types), and footers
-- Identifies placeholder context (paragraph/table)
-- Reports missing and extra placeholders
-- Supports custom template path via `--template` parameter
-
-**Usage:**
-```bash
-python src/validate_placeholders.py --config config/report_config.json
 ```
 
 ### 3. Template Files
@@ -273,33 +211,30 @@ Excel source file containing photometric measurement data.
 
 ## Workflow
 
-### Complete Workflow
+### Quick Start
 
 ```bash
-# Step 1: Generate operations from config and data
-python src/field_mapper.py \
-  --config config/report_config.json \
-  --metadata config/metadata.json \
-  --extracted_data config/data.json \
-  --output operations.json
+# Step 1: Validate data and template
+python src/report_data_validator.py --report config/report.json --config config/report_config.json
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
 
-# Step 2: (Optional) Validate template
-python src/validate_placeholders.py --config config/report_config.json
-
-# Step 3: Process template with operations
+# Step 2: Process template
 python src/process_template.py \
-  --template report_templates/report_template1.docx \
+  --template report_templates/production_template.docx \
   --operations operations.json \
   --output output/report.docx
 ```
 
 ### Data Flow
 
-1. **Data Extraction**: `data.json` contains extracted product data (from AI/OCR)
-2. **Configuration**: `report_config.json` defines how data maps to template
-3. **Operation Generation**: `field_mapper.py` creates operation array
-4. **Template Processing**: `processor.py` applies operations to Word template
-5. **Output**: Generated report with filled placeholders
+1. **Data**: Single `report.json` with hierarchical structure (metadata, extracted_data, calculated_data)
+2. **Configuration**: `report_config.json` defines field mappings and transformations
+3. **Validation**: Run validators to check data and template before processing
+4. **Operation Generation**: `field_mapper.py` creates operation array
+5. **Template Processing**: `processor.py` applies operations to Word template
+6. **Output**: Generated report with filled placeholders
+
+For detailed architecture and component documentation, see [AGENTS.md](AGENTS.md).
 
 ## Placeholders
 
@@ -317,8 +252,9 @@ python src/process_template.py \
 ```json
 {
   "type": "text",
-  "placeholder": "report_no",
-  "value": "250400343HZH-001"
+  "placeholder":"report_no",
+  "value": "250400343HZH-001",
+  "location":"body"(default)
 }
 ```
 
@@ -326,21 +262,16 @@ python src/process_template.py \
 ```json
 {
   "type": "table",
-  "placeholder": "photometric_data",
-  "table_template_path": "report_templates/tables/photometric_table_template.docx",
+  "placeholder":"photometric_data",
+  "table_template_path":"report_template/tables/photometric_data.docx",
   "table_data": [
+    ["Current(A)","Power Pon(W)","Disp. Factor",...],
     ["0.4243", "95.99", "0.9858", ...],
     ["0.4256", "96.19", "0.9853", ...]
-  ],
-  "offset_x": 3,
-  "offset_y": 3
+  ]
 }
-```
 
-**Table Offsets:**
-- `offset_x`: Columns to skip from left (positive = right shift)
-- `offset_y`: Rows to skip from top (positive = down shift)
-- Data starts filling at template cell `[offset_y][offset_x]`
+```
 
 #### Image Insertion
 ```json
@@ -404,11 +335,6 @@ When replacing paragraphs with tables or images, the code checks for parent elem
 - Paragraphs without parents are skipped (cannot be replaced)
 - This prevents errors with nested structures
 
-### Excel Data Extraction
-- Uses `openpyxl` with `read_only=True` for performance
-- `data_only=True` reads calculated formula values
-- Headers are normalized (trim whitespace, collapse multiple spaces)
-
 ### Type Conversion
 - Image dimensions: Numeric values converted to `Inches` objects
 - Offsets: JSON strings converted to integers
@@ -416,147 +342,65 @@ When replacing paragraphs with tables or images, the code checks for parent elem
 
 ## Validation Tools
 
-项目提供两个验证工具，用于在报告生成前检查数据和模板：
+The system provides two validation tools to check data and templates before report generation:
 
-### 1. Report Data Validator (`src/report_data_validator.py`)
-
-验证 `report.json` 数据格式和内容，包括：
-- 数据结构完整性（metadata, extracted_data, calculated_data）
-- 字段类型和数据类型验证
-- 表格数据格式验证（表头、列数一致性）
-- 图像路径验证（文件是否存在）
-- 配置一致性检查（数据字段是否在配置中有映射）
-
-**基本用法：**
 ```bash
-# 只验证 report.json 格式
-python src/report_data_validator.py --report config/report.json
-
-# 同时验证与配置的一致性
+# Validate report.json data format and content
 python src/report_data_validator.py --report config/report.json --config config/report_config.json
 
-# 严格模式（有警告时返回非零退出码）
-python src/report_data_validator.py --report config/report.json --config config/report_config.json --strict
-```
-
-### 2. Template Validator (`src/template_validator.py`)
-
-验证 Word 模板中的占位符状态：
-- **检查占位符是否被分割到多个 runs 中**（这是导致 `{{}}` 残留的根本原因）
-- 验证占位符是否在配置中有定义
-- 提供详细的修复建议
-
-**基本用法：**
-```bash
-# 只检查占位符是否被分割（不需要 config）
-python src/template_validator.py --template report_templates/production_template.docx
-
-# 同时检查占位符是否在 config 中有定义
+# Validate Word template (check placeholder splitting issues)
 python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
 ```
 
-### 推荐的验证工作流
-
-在生成报告前，建议按以下顺序执行验证：
-
-```bash
-# 步骤 1: 验证 report.json 数据格式和内容
-python src/report_data_validator.py --report config/report.json --config config/report_config.json
-
-# 步骤 2: 验证 Word 模板（检查占位符是否会被正确处理）
-python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
-
-# 步骤 3: 如果验证通过，继续生成报告
-# (执行 field_mapper.py → process_template.py 等)
-```
-
-### 常见问题与解决
-
-**问题 1: Template Validator 报告占位符被分割**
-- **原因**: Word 将占位符 `{{placeholder}}` 分割成多个 runs（如 `'{{'`, `'placeholder'`, `'}}'`）
-- **解决**: 在 Word 中删除该占位符，**手动重新输入**（不要复制粘贴），确保在一个连续的文本块中
-
-**问题 2: Report Data Validator 报告字段类型不匹配**
-- **原因**: 字段值类型与期望类型不符（如数值字段传入字符串）
-- **解决**: 检查 `report.json` 中对应字段的值，确保类型正确
-
-**问题 3: 配置一致性验证失败**
-- **原因**: `report_config.json` 中引用的字段在 `report.json` 中不存在
-- **解决**: 添加缺失的字段到 `report.json`，或从配置中移除该字段映射
+For detailed validation documentation and troubleshooting, see [AGENTS.md](AGENTS.md).
 
 ## Testing
 
-### Legacy Validation Tool (Deprecated)
+### Running Tests
+
 ```bash
-# 注意：validate_placeholders.py 已弃用，请使用新的验证工具
-python src/validate_placeholders.py --config config/report_config.json
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_field_mapper.py
+pytest tests/test_calculator.py
 ```
 
 ### Test Workflow
-1. Update `config/data.json` with test data
-2. Run `field_mapper.py` to generate operations
-3. Run `src/report_data_validator.py` to verify data (NEW)
-4. Run `src/template_validator.py` to verify template (NEW)
-5. Run `process_template.py` to generate output
-6. Open output file and verify content
-
-## AI Agent Quick Start
-
-### For AI Agents Processing This Project
-
-1. **Understand Data Flow**: Review config files to understand data sources and mappings
-
-2. **Check Template Validation**: Run validation to identify issues before processing
-
-3. **Generate Operations**: Use `field_mapper.py` to create operation array
-
-4. **Process Template**: Use `processor.py` (via `process_template.py`) to apply operations
-
-5. **Handle Errors**: Check error messages for common issues:
-   - Missing placeholders in template
-   - Invalid file paths
-   - Incorrect data types
-
-### Common Tasks
-
-**Add New Field Mapping:**
-1. Add field to `config/report_config.json` field_mappings
-2. Ensure placeholder exists in Word template
-3. Run validation to verify
-
-**Modify Table Offsets:**
-1. Update `offset_x` and `offset_y` in config
-2. Positive values shift data right/down
-3. Test with sample data
-
-**Debug Placeholder Issues:**
-1. Run `validate_placeholders.py`
-2. Check output for missing/extra placeholders
-3. Verify placeholder names match exactly (case-sensitive)
+1. Update `config/report.json` with test data
+2. Run validators to check data and template
+3. Run `field_mapper.py` to generate operations
+4. Run `process_template.py` to generate output
+5. Open output file and verify content
 
 ## Project Structure
 
 ```
 .
 ├── config/
-│   ├── data.json              # Extracted product data
-│   ├── metadata.json           # Report metadata
-│   └── report_config.json     # Master configuration
+│   ├── report.json            # Report data (metadata, extracted_data, calculated_data)
+│   └── report_config.json     # Field mapping configuration
 ├── data_files/
 │   └── TDS.xlsx              # Excel data source
 ├── report_templates/
-│   ├── report_template1.docx   # Main template
-│   └── tables/
-│       └── photometric_table_template.docx  # Table template
+│   └── *.docx                # Word templates
 ├── src/
-│   ├── field_mapper.py         # Operation generator
-│   ├── processor.py            # Core processor engine
-│   ├── process_template.py      # CLI wrapper
-│   ├── report_data_validator.py  # Data validation tool
-│   ├── template_validator.py    # Template validation tool
-│   └── validate_placeholders.py  # Legacy validation tool (deprecated)
-└── output/                    # Generated reports
+│   ├── processor.py          # Core processing engine
+│   ├── field_mapper.py       # Operation generator
+│   ├── calculator.py         # Field calculation engine
+│   ├── process_template.py   # CLI wrapper
+│   ├── report_data_validator.py  # Data validator
+│   ├── template_validator.py     # Template validator
+│   └── table_processor/      # Table transformation module
+├── tests/                    # Test suite
+└── output/                   # Generated reports
 ```
+
+For detailed component documentation and architecture, see [AGENTS.md](AGENTS.md).
 
 ## License
 

@@ -90,11 +90,11 @@ class PlaceholderFinder:
 
     @staticmethod
     def _replace_in_paragraph(paragraph, placeholder, value):
-        # 同时搜索裸占位符和带 {{}} 的占位符
+        # 只搜索带 {{}} 的完整占位符格式，避免部分匹配问题（如 Pon 匹配到 Ponmax）
         wrapped_placeholder = f'{{{{{placeholder}}}}}'
         
-        # 检查段落中是否包含占位符
-        if placeholder not in paragraph.text and wrapped_placeholder not in paragraph.text:
+        # 检查段落中是否包含完整格式的占位符
+        if wrapped_placeholder not in paragraph.text:
             return False
         
         runs = paragraph.runs
@@ -105,12 +105,6 @@ class PlaceholderFinder:
         for run in runs:
             if wrapped_placeholder in run.text:
                 run.text = run.text.replace(wrapped_placeholder, value)
-                return True
-        
-        # 然后尝试在单个 run 中匹配裸占位符
-        for run in runs:
-            if placeholder in run.text:
-                run.text = run.text.replace(placeholder, value)
                 return True
         
         # 处理占位符被分割到多个 runs 的情况
@@ -598,7 +592,7 @@ class DocxTemplateProcessor:
             List[str]: 占位符名称列表
         """
         import re
-        pattern = re.compile(r'\{\{(\w+)\}\}')
+        pattern = re.compile(r'\{\{([\w.]+)\}\}')
         result = []
         
         for para in self.doc.paragraphs:

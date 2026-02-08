@@ -198,6 +198,12 @@ def photometric_data_transformer(data: List[List[Any]], params: Dict,
                     while len(row) <= col_idx:
                         row.append('')
                     row[col_idx] = value
+                except ZeroDivisionError:
+                    # 除以零时返回 0
+                    while len(row) <= col_idx:
+                        row.append('')
+                    row[col_idx] = 0.0
+                    logger.debug(f"Division by zero in formula: {eval_formula}, returning 0")
                 except Exception as e:
                     logger.warning(f"Formula calculation error: {eval_formula}, {e}")
     
