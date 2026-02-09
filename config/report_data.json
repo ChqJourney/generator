@@ -309,6 +309,7 @@
     "0_180_zone_lumen":"506",
     "cri":"82",
     "beam_angel":"158",
+    "l70_lifetime":"15000",
     "peak_intensity":"1500cd"
   },
   "calculated_data": {
