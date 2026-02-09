@@ -62,6 +62,43 @@ python src/calculator.py --config config/report_config.json --report config/repo
 | `divide` | 除法 | `"function": "divide", "args": ["extracted_data.a", "extracted_data.b"]` |
 | `concat` | 字符串拼接 | `"function": "concat", "args": ["metadata.field1", "metadata.field2"], "separator": " "` |
 | `format_number` | 格式化数字 | `"function": "format_number", "args": ["extracted_data.value", "2"]` |
+| `long_term_data_treatment` | 跨表计算 | 详见下方说明 |
+
+### 跨表计算函数 (long_term_data_treatment)
+
+用于处理 `maintenance_table` 和 `photometric_data_table` 的跨表计算，支持灵活的小数位数控制。
+
+**配置示例：**
+```json
+{
+  "template_field": "long_term_table",
+  "source_field": "calculated_data.long_term_table",
+  "type": "table",
+  "function": "long_term_data_treatment",
+  "args": [
+    "extracted_data.maintenance_table",
+    "extracted_data.photometric_data_table",
+    4,    // calculated_column_index
+    5,    // photometric_column_index
+    {     // decimal_places_config
+      "4": {
+        "condition": ">= 100",
+        "true": 0,
+        "false": 1
+      },
+      "5": 2
+    }
+  ]
+}
+```
+
+**decimal_places_config 格式：**
+- 简单格式: `{"4": 1}` - 第4列保留1位小数
+- 条件格式: `{"4": {"condition": ">= 100", "true": 0, "false": 1}}` - 根据条件动态决定小数位数
+
+**使用说明：**
+1. 创建 `src/custom_calculations.py` 文件
+2. 运行 calculator 时必须指定 `--functions-module custom_calculations` 参数
 
 ## 🔍 常见验证错误速查
 

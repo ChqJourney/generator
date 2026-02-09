@@ -8,8 +8,43 @@
     "manufacturer": "ABC Lighting Co., Ltd.",
     "sample_received_date": "2024-03-01",
     "test_period": "2024-03-01 to 2024-03-10",
-    "test_item_type": "LED Luminaire",
     "containing_product":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "light_sources":{
+      "type":"checkbox",
+      "value":"false"
+    },
+    "replaceable_LED":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "separate_controlgear":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "removable_LED":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "non_replaceable":{
+      "type":"checkbox",
+      "value":"false"
+    },
+    "replace_by_pro":{
+      "type":"checkbox",
+      "value":"false"
+    },
+    "LED_source":{
+      "type":"checkbox",
+      "value":"true"
+    },
+    "non_directional":{
+      "type":"checkbox",
+      "value":"false"
+    },
+    "directional":{
       "type":"checkbox",
       "value":"true"
     },
@@ -18,6 +53,22 @@
       "value":"true"
     },
     "not_mains": {
+      "type":"checkbox",
+      "value":"false"
+    },
+    "connected": {
+      "type":"checkbox",
+      "value":"false"
+    },
+    "not_connected": {
+      "type":"checkbox",
+      "value":"false"
+    },
+    "non_color_tuneable": {
+      "type":"checkbox",
+      "value":"false"
+    },
+    "other_tuneable": {
       "type":"checkbox",
       "value":"false"
     },
@@ -201,13 +252,10 @@
         ]
       ]
     },
-    "long_term_table": {
+    "maintenance_table": {
       "type": "table",
       "value": [
-        [
-          "Luminous Flux Φuse(lm)(3.6 khrs)",
-          "Survival Factor(≥9)"
-        ],
+       
         [
           "950",
           "0.95"
@@ -249,7 +297,19 @@
           "0.50"
         ]
       ]
-    }
+    },
+    "controlgear_table":{
+      "type":"table",
+      "value":[]
+    },
+    "0_30_zone_lumen":"456",
+    "0_60_zone_lumen":"556",
+    "0_90_zone_lumen":"486",
+    "0_120_zone_lumen":"506",
+    "0_180_zone_lumen":"506",
+    "cri":"82",
+    "beam_angel":"158",
+    "peak_intensity":"1500cd"
   },
   "calculated_data": {
     "sample_size": "5 units",
@@ -261,7 +321,6 @@
     "required_maintenance": "89.4%",
     "beam_table": "not set",
     "brand_name": "not set",
-    "controlgear_model": "not set",
     "controlgear_table": "not set",
     "detailed_test_condition": "not set",
     "directional_info": "not set",

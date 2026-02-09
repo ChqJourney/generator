@@ -168,6 +168,71 @@ field_value = calculator.calculate_field(mapping_config)
 
 **返回值：** 商或默认值
 
+### 8. long_term_data_treatment
+
+**用途：** 高级表格数据处理函数，用于合并 `maintenance_table` 和 `photometric_data_table` 的数据，支持灵活的跨表计算和小数位数控制。
+
+**参数：**
+- `maintenance_table` (List[List[Any]]): 维护数据表
+- `photometric_data_table` (List[List[Any]]): 光度数据表
+- `calculated_column` (int): 计算结果存放的列索引（默认4）
+- `photometric_column` (int): photometric_table 中用于计算的列索引（默认5）
+- `decimal_places_config` (Dict): 小数位数配置字典
+
+**返回值：** List[List[Any]] - 处理后的表格数据
+
+**配置示例：**
+
+```json
+{
+  "template_field": "long_term_table",
+  "source_field": "calculated_data.long_term_table",
+  "table_template_path": "report_templates/tables/life_test_table_template.docx",
+  "type": "table",
+  "function": "long_term_data_treatment",
+  "args": [
+    "extracted_data.maintenance_table",
+    "extracted_data.photometric_data_table",
+    4,
+    5,
+    {
+      "4": {
+        "condition": ">= 100",
+        "true": 0,
+        "false": 1
+      },
+      "5": 2
+    }
+  ],
+  "row_strategy": "fixed_rows",
+  "header_rows": 4,
+  "skip_columns": [0,1,2,4]
+}
+```
+
+**decimal_places_config 配置说明：**
+
+1. **简单格式**（固定小数位数）：
+```json
+{
+  "4": 1,    // 第4列保留1位小数
+  "5": 2     // 第5列保留2位小数
+}
+```
+
+2. **条件格式**（根据数值条件动态决定）：
+```json
+{
+  "4": {
+    "condition": ">= 100",  // 条件：值 >= 100
+    "true": 0,               // 满足条件时保留0位小数
+    "false": 1               // 不满足时保留1位小数
+  }
+}
+```
+
+**实现文件：** `src/custom_calculations.py`
+
 ## 自定义计算函数
 
 ### 方法1：直接注册
@@ -287,6 +352,65 @@ python src/calculator.py \
   ],
   "function": "check_pass_fail",
   "type": "text"
+}
+```
+
+### 示例4：表格数据处理（long_term_data_treatment）
+
+用于处理跨表格数据合并和计算，支持灵活的小数位数配置。
+
+```json
+{
+  "template_field": "long_term_table",
+  "source_field": "calculated_data.long_term_table",
+  "table_template_path": "report_templates/tables/life_test_table_template.docx",
+  "type": "table",
+  "function": "long_term_data_treatment",
+  "args": [
+    "extracted_data.maintenance_table",
+    "extracted_data.photometric_data_table",
+    4,
+    5,
+    {
+      "4": {
+        "condition": ">= 100",
+        "true": 0,
+        "false": 1
+      },
+      "5": 2
+    }
+  ],
+  "row_strategy": "fixed_rows",
+  "header_rows": 4,
+  "skip_columns": [0,1,2,4]
+}
+```
+
+**参数说明：**
+- `args[0]`: maintenance_table（维护数据表）
+- `args[1]`: photometric_data_table（光度数据表）
+- `args[2]`: calculated_column_index（计算结果存放的列索引，这里是4）
+- `args[3]`: photometric_column_index（photometric_table中用于计算的列索引，这里是5）
+- `args[4]`: decimal_places_config（小数位数配置）
+
+**decimal_places_config 格式：**
+
+简单格式（固定小数位数）：
+```json
+{
+  "4": 1,    // 第4列保留1位小数
+  "5": 2     // 第5列保留2位小数
+}
+```
+
+条件格式（根据数值条件决定小数位数）：
+```json
+{
+  "4": {
+    "condition": ">= 100",  // 条件：值>=100
+    "true": 0,               // 满足条件时保留0位小数
+    "false": 1               // 不满足时保留1位小数
+  }
 }
 ```
 

@@ -245,7 +245,7 @@ class TableInserter(ContentInserter):
         template_table = table_template.tables[0]
         
         if row_strategy == 'fixed_rows':
-            print(f"processed data: {processed_data}")
+            # print(f"processed data: {processed_data}")
             self._fill_fixed_rows(template_table, processed_data, skip_columns, header_rows, text_insert, calculated_report)
         elif row_strategy == 'dynamic_rows':
             self._fill_dynamic_rows(template_table, processed_data, skip_columns, header_rows)
@@ -348,7 +348,8 @@ class TableInserter(ContentInserter):
         
         keys = path.split('.')
         current = data
-        
+        if len(keys) == 1:
+            return str(path)
         for key in keys:
             if isinstance(current, dict) and key in current:
                 current = current[key]

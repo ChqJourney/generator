@@ -110,7 +110,17 @@ class CalculationRegistry:
     @classmethod
     def load_from_module(cls, module_path: str):
         """从模块加载计算函数"""
+        import sys
         try:
+            # 将当前模块的 CalculationRegistry 注入到 sys.modules，
+            # 确保自定义模块导入时能获取到正确的注册表
+            current_module = sys.modules[cls.__module__]
+            registry_class = getattr(current_module, 'CalculationRegistry')
+            
+            # 注入各种可能的导入路径
+            sys.modules['calculator'] = current_module
+            sys.modules['src.calculator'] = current_module
+            
             module = importlib.import_module(module_path)
             # 模块中的函数会自动通过装饰器注册
         except ImportError as e:
@@ -181,6 +191,11 @@ class FieldCalculator:
         args = []
         for arg_path in args_config:
             try:
+                # 如果 arg_path 不是字符串（如整数、字典等），直接使用该值
+                if not isinstance(arg_path, str):
+                    args.append(arg_path)
+                    continue
+                    
                 field_value = self.get_value(arg_path)
                 args.append(field_value.value)
             except FieldNotFoundError as e:
@@ -436,9 +451,9 @@ def divide(a: float, b: float, default: float = 0.0) -> float:
 # ============================================
 
 def load_json(path: str) -> Dict:
-    """加载JSON文件"""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """加载JSON/JSONC文件（支持带注释的JSON）"""
+    from utils.jsonc_utils import load_json as load_jsonc
+    return load_jsonc(path)
 
 
 def save_json(path: str, data: Dict):
@@ -519,7 +534,7 @@ def main():
         logger.error(f"File not found - {e}")
         return 1
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON - {e}")
+        logger.error(f"Invalid JSON/JSONC - {e}")
         return 1
     except CalculatorError as e:
         logger.error(f"Calculation error: {e}")

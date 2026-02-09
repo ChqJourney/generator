@@ -58,7 +58,7 @@ def extract_template_checkboxes(template_path: Path) -> set:
 
 def load_calculated_report(report_path: Path) -> dict:
     """
-    加载calculated_report.json文件
+    加载calculated_report.json文件（支持JSONC格式）
     
     返回结构:
     {
@@ -67,8 +67,8 @@ def load_calculated_report(report_path: Path) -> dict:
         "calculated_data": {...}
     }
     """
-    with open(report_path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    from utils.jsonc_utils import load_json
+    data = load_json(report_path)
     
     # 确保基本结构存在
     if 'metadata' not in data:
@@ -193,8 +193,8 @@ def main():
             return 1
         
         # 加载数据
-        with open(operations_path, 'r', encoding='utf-8') as f:
-            operations_data = json.load(f)
+        from utils.jsonc_utils import load_json
+        operations_data = load_json(operations_path)
         
         calculated_report = load_calculated_report(report_path)
         

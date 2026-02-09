@@ -40,9 +40,9 @@ def parse_checkbox_value(value: Any) -> bool:
 
 
 def load_json(path: str) -> Dict:
-    """加载JSON文件"""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """加载JSON/JSONC文件（支持带注释的JSON）"""
+    from utils.jsonc_utils import load_json as load_jsonc
+    return load_jsonc(path)
 
 
 def get_value_by_path(data: Dict, path: str) -> Any:

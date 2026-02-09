@@ -31,10 +31,10 @@ class TemplateValidator:
         self.undefined_placeholders = []  # 在 config 中未定义的占位符
         
     def _load_config(self) -> Dict:
-        """加载配置文件"""
+        """加载配置文件（支持 JSONC 格式）"""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            from utils.jsonc_utils import load_json
+            return load_json(self.config_path)
         except Exception as e:
             print(f"[WARN] 无法加载配置文件: {e}")
             return None

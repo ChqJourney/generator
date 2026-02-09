@@ -107,7 +107,8 @@ The system uses a three-tier hierarchical data structure:
 python src/calculator.py \
     --config config/report_config.json \
     --report config/report.json \
-    --output output/calculated_report.json
+    --output output/calculated_report.json \
+    --functions-module custom_calculations
 ```
 
 ### 2. Field Mapper (`src/field_mapper.py`)
@@ -500,6 +501,67 @@ python src/process_template.py \
    ```
 2. Add field mapping with `"function": "my_calculation"`
 3. Run calculator with `--functions-module custom_calculations`
+
+### Adding a Cross-Table Calculation (long_term_table)
+
+For cross-table calculations (e.g., dividing columns from different tables):
+
+1. **Configuration in `config/report_config.json`**:
+   ```json
+   {
+     "template_field": "long_term_table",
+     "source_field": "calculated_data.long_term_table",
+     "table_template_path": "report_templates/tables/life_test_table_template.docx",
+     "type": "table",
+     "function": "long_term_data_treatment",
+     "args": [
+       "extracted_data.maintenance_table",
+       "extracted_data.photometric_data_table",
+       4,    // calculated_column_index
+       5,    // photometric_column_index
+       {     // decimal_places_config
+         "4": {
+           "condition": ">= 100",
+           "true": 0,
+           "false": 1
+         },
+         "5": 2
+       }
+     ],
+     "row_strategy": "fixed_rows",
+     "header_rows": 4,
+     "skip_columns": [0,1,2,4]
+   }
+   ```
+
+2. **Create `src/custom_calculations.py`**:
+   ```python
+   from src.calculator import CalculationRegistry
+   
+   @CalculationRegistry.register("long_term_data_treatment")
+   def long_term_data_treatment(
+       maintenance_table,
+       photometric_data_table,
+       calculated_column=4,
+       photometric_column=5,
+       decimal_places_config=None
+   ):
+       # Implementation (see src/custom_calculations.py)
+       pass
+   ```
+
+3. **Run with custom functions**:
+   ```bash
+   python src/calculator.py \
+       --config config/report_config.json \
+       --report config/report.json \
+       --output output/calculated_report.json \
+       --functions-module custom_calculations
+   ```
+
+**Decimal Places Configuration:**
+- Simple format: `{"4": 1}` - column 4 with 1 decimal place
+- Conditional format: `{"4": {"condition": ">= 100", "true": 0, "false": 1}}` - dynamic decimal places based on value
 
 ### Debugging Placeholder Issues
 

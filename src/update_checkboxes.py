@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import json
 import sys
 import argparse
 from docx import Document
@@ -9,8 +8,8 @@ from utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 def load_checkbox_mapping(json_path):
-    with open(json_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    from utils.jsonc_utils import load_json
+    return load_json(json_path)
 
 def update_checkboxes(docx_path, checkbox_mapping, output_path):
     doc = Document(docx_path)
@@ -74,11 +73,12 @@ def main():
     except FileNotFoundError as e:
         logger.error(f"文件未找到 - {e}")
         sys.exit(1)
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON格式错误 - {e}")
-        sys.exit(1)
     except Exception as e:
-        logger.error(f"错误: {e}")
+        import json
+        if "json" in str(type(e).__name__).lower() or "JSON" in str(e):
+            logger.error(f"JSON/JSONC格式错误 - {e}")
+        else:
+            logger.error(f"错误: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

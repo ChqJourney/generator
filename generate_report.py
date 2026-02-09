@@ -117,8 +117,8 @@ def main():
     )
     parser.add_argument(
         '--config',
-        default='config/report_config.json',
-        help='report_config.json 路径 (默认: config/report_config.json)'
+        default='config/report_config.jsonc',
+        help='report_config.json 路径 (默认: config/report_config.jsonc)'
     )
     parser.add_argument(
         '--template',
@@ -168,7 +168,8 @@ def main():
     )
     parser.add_argument(
         '--functions-module',
-        help='自定义计算函数模块路径'
+        help='自定义计算函数模块路径',
+        default='custom_calculations'
     )
     
     args = parser.parse_args()

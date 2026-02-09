@@ -635,9 +635,9 @@ class ReportDataValidator:
 
 
 def load_json(path: str) -> Dict:
-    """加载 JSON 文件"""
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    """加载 JSON/JSONC 文件（支持带注释的 JSON）"""
+    from utils.jsonc_utils import load_json as load_jsonc
+    return load_jsonc(path)
 
 
 def main():

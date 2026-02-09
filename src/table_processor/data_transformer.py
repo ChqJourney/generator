@@ -23,7 +23,7 @@ class TableDataTransformer:
     """表格数据转换器"""
     
     def transform(self, data, transformations, calculated_report=None):
-        print(f"calculated_report in transform: {calculated_report}")
+        # print(f"calculated_report in transform: {calculated_report}")
         result = [row[:] for row in data]
     
         # 分离聚合操作和非聚合操作
