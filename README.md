@@ -8,24 +8,23 @@ This project automates the generation of Word reports by inserting extracted dat
 
 ```
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│  report.json   │         │report_config.json│        │  Word Template │
-│  (Hierarchical │         │  (Field Mappings)│        │  .docx         │
-│   Data)        │         │                 │        │                │
+│  report.json   │         │report_config.json│        │  Word Template   │
+│  (Hierarchical │         │  (Field Mappings)│        │  .docx           │
+│   Data)        │         │                  │        │                  │
 └────────┬────────┘         └────────┬────────┘        └────────┬────────┘
          │                          │                          │
          │                          ▼                          │
          │               ┌──────────────────────┐              │
-         │               │  field_mapper.py    │              │
-         │               │  (Generate Ops)    │              │
-         │               └────────┬───────────┘              │
+         │               │  field_mapper.py    │               │
+         │               │  (Generate Ops)    │                │
+         │               └────────┬───────────┘                │
          │                          │                          │
          ▼                          ▼                          ▼
 ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
-│  validator.py       │  │  operations.json    │  │  process_template.py │
-│  (Validation)       │  │  (Operation Array)  │  │  (CLI Wrapper)       │
-└──────────────────────┘  └────────┬───────────┘  └──────────┬───────────┘
-                                   │                         │
-                                   ▼                         ▼
+│validators(Validation)│  │  (Operation Array)  │   │  (CLI Wrapper)       │
+└──────────────────────┘  └────────┬───────────┘    └──────────┬───────────┘
+                                   │                           │
+                                   ▼                           ▼
                           ┌──────────────────────┐
                           │  processor.py       │
                           │  (Apply Operations) │
@@ -33,7 +32,7 @@ This project automates the generation of Word reports by inserting extracted dat
                                    │
                                    ▼
                           ┌──────────────────────┐
-                          │  Output .docx      │
+                          │  Output .docx        │
                           └──────────────────────┘
 ```
 
@@ -168,7 +167,7 @@ Core engine that applies operations to Word templates.
   - Preserves formatting by replacing in runs
 
 - `TableInserter(ContentInserter)`: Handles table insertion
-  - `insert(placeholder, table_template_path, table_data, offset_x, offset_y, location)`: Inserts table
+  - `insert(placeholder, table_template_path, table_data, location)`: Inserts table
   - Loads table template and fills with data
   - Applies offset_x (column shift) and offset_y (row shift)
   - Skips paragraphs without parent (handles nested table cells)
@@ -208,7 +207,7 @@ Converts operations.json to processor calls with proper type conversions.
 python src/process_template.py \
   --template report_templates/report_template1.docx \
   --operations operations.json \
-  --calculated-report config/report.json \
+  --calculated-report config/report_data.json \
   --output output/report.docx
 ```
 
@@ -231,14 +230,14 @@ Excel source file containing photometric measurement data.
 
 ```bash
 # Step 1: Validate data and template
-python src/report_data_validator.py --report config/report.json --config config/report_config.json
+python src/report_data_validator.py --report config/report_data.json --config config/report_config.json
 python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
 
 # Step 2: Process template (checkbox handling is automatic)
 python src/process_template.py \
   --template report_templates/production_template.docx \
   --operations operations.json \
-  --calculated-report config/report.json \
+  --calculated-report config/report_data.json \
   --output output/report.docx
 ```
 
@@ -246,7 +245,7 @@ python src/process_template.py \
 
 ### Data Flow
 
-1. **Data**: Single `report.json` with hierarchical structure (metadata, extracted_data, calculated_data)
+1. **Data**: Single `report_data.json` with hierarchical structure (metadata, extracted_data, calculated_data)
 2. **Configuration**: `report_config.json` defines field mappings and transformations
 3. **Validation**: Run validators to check data and template before processing
 4. **Operation Generation**: `field_mapper.py` creates operation array (including checkbox operations)
@@ -321,7 +320,7 @@ For detailed architecture and component documentation, see [AGENTS.md](AGENTS.md
 
 **Checkbox Behavior:**
 - Template checkboxes not in `checkbox_mapping` are automatically set to `false`
-- Data format in `report.json`: `{"type": "checkbox", "value": "true/false"}`
+- Data format in `report_data.json`: `{"type": "checkbox", "value": "true/false"}`
 - Missing checkbox data defaults to `false`
 
 ## Error Handling
@@ -380,8 +379,8 @@ When replacing paragraphs with tables or images, the code checks for parent elem
 The system provides two validation tools to check data and templates before report generation:
 
 ```bash
-# Validate report.json data format and content
-python src/report_data_validator.py --report config/report.json --config config/report_config.json
+# Validate report_data.json data format and content
+python src/report_data_validator.py --report config/report_data.json --config config/report_config.json
 
 # Validate Word template (check placeholder splitting issues)
 python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
@@ -417,7 +416,7 @@ pytest tests/test_calculator.py
 ```
 .
 ├── config/
-│   ├── report.json            # Report data (metadata, extracted_data, calculated_data)
+│   ├── report_data.json            # Report data (metadata, extracted_data, calculated_data)
 │   └── report_config.json     # Field mapping configuration
 ├── data_files/
 │   └── TDS.xlsx              # Excel data source

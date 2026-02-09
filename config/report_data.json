@@ -60,7 +60,7 @@
       "type":"checkbox",
       "value":"false"
     },
-    "not_connected": {
+    "non_connected": {
       "type":"checkbox",
       "value":"false"
     },
@@ -324,7 +324,11 @@
     "controlgear_table": "not set",
     "detailed_test_condition": "not set",
     "directional_info": "not set",
-    "eei_class_table": "not set",
+    "eei_class_table": {
+      "type":"table",
+      "value":[
+      ]
+    },
     "light_distribution_image": "not set",
     "photometric_data_table": "not set",
     "userful_luminous_flux": "not set",

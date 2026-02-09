@@ -118,8 +118,6 @@ python src/calculator.py \
 **Key Functions**:
 - `generate_operations(config, report_data)` - Main conversion function
 - `get_value_by_path(data, path)` - Dot-notation value extraction
-- `build_table_data_from_excel(value, target_headers)` - Excel data extraction
-- `get_xlsx_to_list(...)` - Excel to list conversion
 
 **Table Data Sources**:
 - **Embedded**: Direct list-of-lists in JSON
@@ -375,7 +373,7 @@ python src/validate_report.py \
 # Step 2: Calculate derived fields
 python src/calculator.py \
     --config config/report_config.json \
-    --report config/report.json \
+    --report config/report_data.json \
     --output output/calculated_report.json
 
 # Step 3: Generate operations
