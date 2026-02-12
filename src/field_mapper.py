@@ -75,14 +75,14 @@ def is_direct_table_data(value: Any) -> bool:
         return (
             isinstance(table_value, list) and 
             len(table_value) > 0 and 
-            isinstance(table_value[0], list)
+            all(isinstance(row, list) for row in table_value)
         )
     
     # 检查是否是直接的列表的列表格式
     return (
         isinstance(value, list) and 
         len(value) > 0 and 
-        isinstance(value[0], list)
+        all(isinstance(row, list) for row in value)
     )
 
 

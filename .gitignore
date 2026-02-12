@@ -5,3 +5,4 @@ output/
 *.docx
 !report_templates/*.docx
 !report_templates/**/*.docx
+htmlcov

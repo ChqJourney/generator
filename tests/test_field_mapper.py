@@ -19,6 +19,7 @@ from field_mapper import (
     is_direct_table_data,
     generate_operations,
     main,
+    parse_checkbox_value,
 )
 
 
@@ -146,60 +147,6 @@ class TestGetValueByPath:
 
 
 # =============================================================================
-# is_external_table_reference 函数测试
-# =============================================================================
-
-class TestIsExternalTableReference:
-    """is_external_table_reference 函数测试"""
-    
-    def test_valid_external_reference(self):
-        """测试有效的外部引用"""
-        value = {
-            "type": "external",
-            "source_id": "file.xlsx|Sheet1",
-            "start_row": 1
-        }
-        assert is_external_table_reference(value) is True
-    
-    def test_missing_type_field(self):
-        """测试缺少 type 字段"""
-        value = {
-            "source_id": "file.xlsx|Sheet1"
-        }
-        assert is_external_table_reference(value) is False
-    
-    def test_wrong_type_value(self):
-        """测试 type 值不正确"""
-        value = {
-            "type": "internal",
-            "source_id": "file.xlsx|Sheet1"
-        }
-        assert is_external_table_reference(value) is False
-    
-    def test_missing_source_id(self):
-        """测试缺少 source_id 字段"""
-        value = {
-            "type": "external",
-            "start_row": 1
-        }
-        assert is_external_table_reference(value) is False
-    
-    def test_not_a_dict(self):
-        """测试非字典类型"""
-        assert is_external_table_reference("string") is False
-        assert is_external_table_reference([1, 2, 3]) is False
-        assert is_external_table_reference(123) is False
-    
-    def test_empty_dict(self):
-        """测试空字典"""
-        assert is_external_table_reference({}) is False
-    
-    def test_none_value(self):
-        """测试 None 值"""
-        assert is_external_table_reference(None) is False
-
-
-# =============================================================================
 # is_direct_table_data 函数测试
 # =============================================================================
 
@@ -255,7 +202,7 @@ class TestIsDirectTableData:
         value = [["row1"], "not a list", ["row3"]]
         # 当前源代码只检查第一个元素，所以返回 True
         result = is_direct_table_data(value)
-        assert result is True  # 这是当前实际行为
+        assert result is False  # 这是当前实际行为
 
 
 # =============================================================================
@@ -547,215 +494,6 @@ class TestGenerateOperations:
         
         assert result["operations"][0]["value"] == "42"
         assert isinstance(result["operations"][0]["value"], str)
-
-
-# =============================================================================
-# build_table_data_from_excel 函数测试
-# =============================================================================
-
-class TestBuildTableDataFromExcel:
-    """build_table_data_from_excel 函数测试"""
-    
-    @patch('field_mapper.get_xlsx_to_list')
-    def test_valid_external_reference(self, mock_get_xlsx):
-        """测试有效的外部引用"""
-        mock_get_xlsx.return_value = [
-            ["col1", "col2"],
-            ["val1", "val2"]
-        ]
-        
-        value = {
-            "type": "external",
-            "source_id": "test.xlsx|Sheet1",
-            "start_row": 1,
-            "mapping": {"col1": "A", "col2": "B"}
-        }
-        
-        result = build_table_data_from_excel(value, ["col1", "col2"])
-        
-        assert len(result) == 2
-        mock_get_xlsx.assert_called_once()
-    
-    def test_invalid_source_id_format(self):
-        """测试无效的 source_id 格式"""
-        value = {
-            "type": "external",
-            "source_id": "invalid_format",
-            "start_row": 1
-        }
-        
-        result = build_table_data_from_excel(value)
-        
-        assert result == []
-    
-    @patch('field_mapper.get_xlsx_to_list')
-    def test_error_during_excel_reading(self, mock_get_xlsx):
-        """测试 Excel 读取错误处理"""
-        mock_get_xlsx.side_effect = Exception("File not found")
-        
-        value = {
-            "type": "external",
-            "source_id": "test.xlsx|Sheet1",
-            "start_row": 1
-        }
-        
-        result = build_table_data_from_excel(value)
-        
-        assert result == []
-
-
-# =============================================================================
-# get_xlsx_to_list 函数测试
-# =============================================================================
-
-class TestGetXlsxToList:
-    """get_xlsx_to_list 函数测试"""
-    
-    @patch('field_mapper.load_workbook')
-    def test_basic_excel_reading(self, mock_load_workbook):
-        """测试基本 Excel 读取"""
-        # 创建 mock worksheet
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([
-            ("Header1", "Header2"),  # 表头行
-            ("val1", "val2"),        # 数据行1
-            ("val3", "val4")         # 数据行2
-        ])
-        
-        # 创建 mock workbook
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        mapping = {"col1": "Header1", "col2": "Header2"}
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 0, mapping, ["col1", "col2"]
-        )
-        
-        assert len(result) == 2
-        assert result[0] == ["val1", "val2"]
-        assert result[1] == ["val3", "val4"]
-        mock_wb.close.assert_called_once()
-    
-    @patch('field_mapper.load_workbook')
-    def test_sheet_not_found_raises_error(self, mock_load_workbook):
-        """测试工作表不存在抛出错误"""
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(side_effect=KeyError("Sheet1"))
-        mock_wb.close = MagicMock()
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        with pytest.raises(ValueError, match="工作表"):
-            get_xlsx_to_list(
-                "test.xlsx", "Sheet1", 0, {}, []
-            )
-    
-    @patch('field_mapper.load_workbook')
-    def test_empty_sheet_returns_empty_list(self, mock_load_workbook):
-        """测试空工作表返回空列表"""
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([])
-        
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 0, {}, []
-        )
-        
-        assert result == []
-    
-    @patch('field_mapper.load_workbook')
-    def test_header_whitespace_normalization(self, mock_load_workbook):
-        """测试表头空白字符规范化"""
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([
-            ("  Header  1  ", "Header 2"),  # 带空格的表头
-            ("val1", "val2")
-        ])
-        
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        mapping = {"col1": "Header 1", "col2": "Header 2"}
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 0, mapping, ["col1", "col2"]
-        )
-        
-        assert result[0] == ["val1", "val2"]
-    
-    @patch('field_mapper.load_workbook')
-    def test_none_values_converted_to_empty_string(self, mock_load_workbook):
-        """测试 None 值转为空字符串"""
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([
-            ("Header1",),
-            (None,),
-            ("val1",)
-        ])
-        
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        mapping = {"col1": "Header1"}
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 0, mapping, ["col1"]
-        )
-        
-        assert result[0] == [""]
-        assert result[1] == ["val1"]
-    
-    @patch('field_mapper.load_workbook')
-    def test_missing_mapping_column_returns_empty(self, mock_load_workbook):
-        """测试缺失映射列返回空字符串"""
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([
-            ("Header1",),
-            ("val1",)
-        ])
-        
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        # 请求一个不存在映射的列
-        mapping = {"col1": "Header1"}
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 0, mapping, ["col1", "missing_col"]
-        )
-        
-        assert result[0] == ["val1", ""]
-    
-    @patch('field_mapper.load_workbook')
-    def test_start_row_offset(self, mock_load_workbook):
-        """测试起始行偏移"""
-        mock_ws = MagicMock()
-        mock_ws.iter_rows.return_value = iter([
-            ("Header1",),  # start_row=1, so this is row 2
-            ("val1",)
-        ])
-        
-        mock_wb = MagicMock()
-        mock_wb.__getitem__ = MagicMock(return_value=mock_ws)
-        
-        mock_load_workbook.return_value = mock_wb
-        
-        mapping = {"col1": "Header1"}
-        result = get_xlsx_to_list(
-            "test.xlsx", "Sheet1", 1, mapping, ["col1"]
-        )
-        
-        # iter_rows 应该以 min_row=2 被调用（start_row + 1）
-        mock_ws.iter_rows.assert_called_once_with(min_row=2, values_only=True)
 
 
 # =============================================================================

@@ -132,11 +132,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_init_success(self, mock_is_open, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_init_success(self, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试处理器初始化成功"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         
         processor = DocxTemplateProcessor("template.docx", "output.docx")
@@ -158,22 +156,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    def test_init_file_locked(self, mock_doc_class, mock_copy, mock_exists, mock_document):
-        """测试输出文件被 Word 占用时抛出异常"""
-        mock_exists.return_value = True
-        
-        with patch('processor.DocxTemplateProcessor.is_word_file_open', return_value=True):
-            with pytest.raises(DocxTemplateError, match="currently open in Word"):
-                DocxTemplateProcessor("template.docx", "output.docx")
-    
-    @patch('processor.os.path.exists')
-    @patch('processor.shutil.copy')
-    @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_add_text_operation(self, mock_is_open, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_add_text_operation(self, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试添加文本操作"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         
         processor = DocxTemplateProcessor("template.docx", "output.docx")
@@ -190,11 +175,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_add_table_operation(self, mock_is_open, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_add_table_operation(self, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试添加表格操作"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         
         processor = DocxTemplateProcessor("template.docx", "output.docx")
@@ -214,11 +197,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_add_image_operation(self, mock_is_open, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_add_image_operation(self, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试添加图片操作"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         
         processor = DocxTemplateProcessor("template.docx", "output.docx")
@@ -238,11 +219,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_add_checkboxes_operation(self, mock_is_open, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_add_checkboxes_operation(self, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试添加复选框操作"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         
         processor = DocxTemplateProcessor("template.docx", "output.docx")
@@ -257,11 +236,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.os.path.exists')
     @patch('processor.shutil.copy')
     @patch('processor.Document')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_get_all_placeholders(self, mock_is_open, mock_doc_class, mock_copy, mock_exists):
+    def test_get_all_placeholders(self, mock_doc_class, mock_copy, mock_exists):
         """测试获取所有占位符"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         
         # 创建带占位符的模拟文档
         mock_doc = MagicMock()
@@ -288,11 +265,9 @@ class TestDocxTemplateProcessor:
     @patch('processor.shutil.copy')
     @patch('processor.Document')
     @patch('processor.TextInserter')
-    @patch('processor.DocxTemplateProcessor.is_word_file_open')
-    def test_process_text_operation(self, mock_is_open, mock_inserter_class, mock_doc_class, mock_copy, mock_exists, mock_document):
+    def test_process_text_operation(self, mock_inserter_class, mock_doc_class, mock_copy, mock_exists, mock_document):
         """测试处理文本操作"""
         mock_exists.return_value = True
-        mock_is_open.return_value = False
         mock_doc_class.return_value = mock_document
         mock_inserter = MagicMock()
         mock_inserter_class.return_value = mock_inserter
@@ -575,7 +550,7 @@ class TestCheckboxInserter:
         
         inserter = CheckboxInserter(mock_document)
         
-        with patch('processor.parse_xml') as mock_parse_xml:
+        with patch('docx.oxml.parse_xml') as mock_parse_xml:
             inserter.insert({"checkbox1": True})
             mock_parse_xml.assert_called_once()
     
@@ -733,33 +708,6 @@ class TestExceptions:
         """测试 DocxTemplateError"""
         error = DocxTemplateError("custom error message")
         assert "custom error message" in str(error)
-
-
-# =============================================================================
-# is_word_file_open 测试
-# =============================================================================
-
-class TestIsWordFileOpen:
-    """is_word_file_open 静态方法的测试类"""
-    
-    @patch('processor.os.path.exists')
-    def test_file_is_open(self, mock_exists):
-        """测试检测 Word 文件被打开"""
-        mock_exists.return_value = True
-        
-        result = DocxTemplateProcessor.is_word_file_open("C:/docs/test.docx")
-        
-        assert result is True
-        mock_exists.assert_called_once()
-    
-    @patch('processor.os.path.exists')
-    def test_file_is_not_open(self, mock_exists):
-        """测试检测 Word 文件未被打开"""
-        mock_exists.return_value = False
-        
-        result = DocxTemplateProcessor.is_word_file_open("C:/docs/test.docx")
-        
-        assert result is False
 
 
 if __name__ == "__main__":

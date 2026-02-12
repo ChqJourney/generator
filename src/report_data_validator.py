@@ -15,12 +15,6 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# 修复 Windows 控制台编码问题
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
-
 class ValidationLevel(Enum):
     """验证级别"""
     ERROR = "error"      # 错误：会阻止处理
@@ -718,4 +712,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # 修复 Windows 控制台编码问题
+    if sys.platform == 'win32':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
     sys.exit(main())
