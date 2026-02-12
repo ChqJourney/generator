@@ -4,7 +4,7 @@
 
 This is a Python-based Word document report generation system that automates the creation of professional reports by inserting extracted product data into pre-designed Word templates. It supports text replacement, table insertion, and image embedding with placeholder-based templating.
 
-**Key Use Case**: Generating lighting product test reports (photometric data, energy ratings, etc.) from Excel test results and metadata.
+**Key Use Case**: Generating lighting product test reports (photometric data, energy ratings, etc.) from test results and metadata.
 
 ---
 
@@ -26,7 +26,7 @@ This is a Python-based Word document report generation system that automates the
 ```
 docx/
 ├── config/                          # Configuration files
-│   ├── report_config.json          # Main field mapping configuration
+│   ├── report_config.jsonc         # Main field mapping configuration (JSON with comments)
 │   ├── report_data.json            # Example report data structure
 ├── data_files/                     # Data sources
 │   └── TDS.xlsx                   # Excel test data source
@@ -105,7 +105,7 @@ The system uses a three-tier hierarchical data structure:
 **CLI Usage**:
 ```bash
 python src/calculator.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report config/report.json \
     --output output/calculated_report.json \
     --functions-module custom_calculations
@@ -131,7 +131,7 @@ python src/calculator.py \
 **CLI Usage**:
 ```bash
 python src/field_mapper.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report output/calculated_report.json \
     --output output/operations.json
 ```
@@ -189,10 +189,10 @@ python src/field_mapper.py \
 python src/report_data_validator.py --report config/report.json
 
 # Full validation (including config consistency)
-python src/report_data_validator.py --report config/report.json --config config/report_config.json
+python src/report_data_validator.py --report config/report.json --config config/report_config.jsonc
 
 # Strict mode (non-zero exit code on warnings)
-python src/report_data_validator.py --report config/report.json --config config/report_config.json --strict
+python src/report_data_validator.py --report config/report.json --config config/report_config.jsonc --strict
 ```
 
 ### 6. Template Validator (`src/template_validator.py`)
@@ -210,7 +210,7 @@ python src/report_data_validator.py --report config/report.json --config config/
 python src/template_validator.py --template report_templates/production_template.docx
 
 # Also check if placeholders are defined in config
-python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.jsonc
 ```
 
 **Fixing Split Placeholders**:
@@ -231,15 +231,12 @@ Before generating reports, it's strongly recommended to run both validators:
 # Step 1: Validate report.json data format and content
 python src/report_data_validator.py \
     --report config/report.json \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 
 # Step 2: Validate Word template (check if placeholders will be processed correctly)
 python src/template_validator.py \
     --template report_templates/production_template.docx \
-    --config config/report_config.json
-
-# Step 3: If both validations pass, proceed with report generation
-# (Run calculator.py → field_mapper.py → process_template.py)
+    --config config/report_config.jsonc
 ```
 
 **Why Both Validators?**
@@ -366,28 +363,21 @@ pytest --cov=src --cov-report=html
 
 ```bash
 # Step 1: Validate report.json
-python src/validate_report.py \
+python src/report_data_validator.py \
     --report config/report.json \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 
 # Step 2: Calculate derived fields
 python src/calculator.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report config/report_data.json \
     --output output/calculated_report.json
 
 # Step 3: Generate operations
 python src/field_mapper.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report output/calculated_report.json \
     --output output/operations.json
-
-# Step 4: Process template
-python src/process_template.py \
-    --template report_templates/production_template.docx \
-    --operations output/operations.json \
-    --calculated-report config/report_data.json \
-    --output output/report.docx
 ```
 
 **Note:** In the new architecture, `process_template.py` uses `--calculated-report` instead of separate `--metadata` and `--targets` arguments. Checkbox operations are automatically handled during template processing.
@@ -452,7 +442,7 @@ python src/process_template.py \
 
 ### Adding a New Field Mapping
 
-1. Add entry to `config/report_config.json` field_mappings:
+1. Add entry to `config/report_config.jsonc` field_mappings:
    ```json
    {
      "template_field": "new_field",
@@ -465,7 +455,7 @@ python src/process_template.py \
 
 ### Adding a Checkbox Field
 
-1. Add checkbox entry to `config/report_config.json` field_mappings:
+1. Add checkbox entry to `config/report_config.jsonc` field_mappings:
    ```json
    {
      "template_field": "containing_product",
@@ -473,7 +463,7 @@ python src/process_template.py \
      "type": "checkbox"
    }
    ```
-2. Add checkbox data to `config/report.json`:
+2. Add checkbox data to `config/report_data.json`:
    ```json
    {
      "metadata": {
@@ -549,13 +539,13 @@ For cross-table calculations (e.g., dividing columns from different tables):
    ```
 
 3. **Run with custom functions**:
-   ```bash
-   python src/calculator.py \
-       --config config/report_config.json \
-       --report config/report.json \
-       --output output/calculated_report.json \
-       --functions-module custom_calculations
-   ```
+    ```bash
+    python src/calculator.py \
+        --config config/report_config.jsonc \
+        --report config/report_data.json \
+        --output output/calculated_report.json \
+        --functions-module custom_calculations
+    ```
 
 **Decimal Places Configuration:**
 - Simple format: `{"4": 1}` - column 4 with 1 decimal place
@@ -633,7 +623,6 @@ For cross-table calculations (e.g., dividing columns from different tables):
   - Common validation errors and solutions
   - Configuration templates
 
-- **`config/report_config_example_complete.json`** - Complete configuration example with comments
 
 ---
 

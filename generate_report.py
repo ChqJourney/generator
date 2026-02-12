@@ -32,6 +32,10 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def run_command(cmd: List[str], description: str, strict: bool = False) -> bool:
     """
@@ -45,11 +49,11 @@ def run_command(cmd: List[str], description: str, strict: bool = False) -> bool:
     Returns:
         bool: 是否成功
     """
-    print(f"\n{'='*70}")
-    print(f"📋 {description}")
-    print(f"{'='*70}")
-    print(f"命令: {' '.join(cmd)}\n")
-    
+    logger.info(f"{'='*70}")
+    logger.info(f"📋 {description}")
+    logger.info(f"{'='*70}")
+    logger.info(f"命令: {' '.join(cmd)}")
+
     try:
         result = subprocess.run(
             cmd,
@@ -57,20 +61,20 @@ def run_command(cmd: List[str], description: str, strict: bool = False) -> bool:
             text=True,
             encoding='utf-8'
         )
-        
+
         if result.returncode != 0:
-            print(f"\n❌ {description} 失败 (退出码: {result.returncode})")
+            logger.error(f"{description} 失败 (退出码: {result.returncode})")
             if strict:
                 return False
             # 非严格模式下询问是否继续
             response = input("\n是否继续? [y/N]: ").strip().lower()
             return response == 'y'
-        
-        print(f"\n✅ {description} 完成")
+
+        logger.info(f"✅ {description} 完成")
         return True
-        
+
     except Exception as e:
-        print(f"\n❌ {description} 出错: {e}")
+        logger.error(f"{description} 出错: {e}")
         if strict:
             return False
         response = input("\n是否继续? [y/N]: ").strip().lower()
@@ -184,37 +188,37 @@ def main():
     
     # 检查输入文件是否存在
     if not report_path.exists():
-        print(f"❌ 错误: Report 文件不存在: {report_path}")
+        logger.error(f"Report 文件不存在: {report_path}")
         return 1
-    
+
     if not config_path.exists():
-        print(f"❌ 错误: Config 文件不存在: {config_path}")
+        logger.error(f"Config 文件不存在: {config_path}")
         return 1
-    
+
     if not template_path.exists():
-        print(f"❌ 错误: Template 文件不存在: {template_path}")
+        logger.error(f"Template 文件不存在: {template_path}")
         return 1
-    
+
     # 确保输出目录存在
     ensure_dir(calculated_report_path)
     ensure_dir(operations_path)
     ensure_dir(output_path)
-    
-    print(f"\n{'#'*70}")
-    print("#" + " "*68 + "#")
-    print("#" + " 报告生成流程".center(64) + "#")
-    print("#" + " "*68 + "#")
-    print(f"{'#'*70}")
-    
-    print("\n📁 输入文件:")
-    print(f"  • Report Data: {report_path}")
-    print(f"  • Config: {config_path}")
-    print(f"  • Template: {template_path}")
-    
-    print("\n📁 输出文件:")
-    print(f"  • Calculated Report: {calculated_report_path}")
-    print(f"  • Operations: {operations_path}")
-    print(f"  • Final Report: {output_path}")
+
+    logger.info(f"{'#'*70}")
+    logger.info("#" + " "*68 + "#")
+    logger.info("#" + " 报告生成流程".center(64) + "#")
+    logger.info("#" + " "*68 + "#")
+    logger.info(f"{'#'*70}")
+
+    logger.info("📁 输入文件:")
+    logger.info(f"  • Report Data: {report_path}")
+    logger.info(f"  • Config: {config_path}")
+    logger.info(f"  • Template: {template_path}")
+
+    logger.info("📁 输出文件:")
+    logger.info(f"  • Calculated Report: {calculated_report_path}")
+    logger.info(f"  • Operations: {operations_path}")
+    logger.info(f"  • Final Report: {output_path}")
     
     # ========== 第1步: 验证 Report Data ==========
     if not args.skip_validation:
@@ -227,14 +231,14 @@ def main():
             cmd.append('--strict')
         
         if not run_command(cmd, "步骤 1/5: 验证 Report Data", strict=args.strict):
-            print("\n" + "="*70)
-            print("❌ 流程中止: Report Data 验证失败")
-            print("="*70)
+            logger.error("="*70)
+            logger.error("流程中止: Report Data 验证失败")
+            logger.error("="*70)
             return 1
     else:
-        print("\n" + "="*70)
-        print("⏭️  跳过步骤 1/5: Report Data 验证 (--skip-validation)")
-        print("="*70)
+        logger.info("="*70)
+        logger.info("⏭️  跳过步骤 1/5: Report Data 验证 (--skip-validation)")
+        logger.info("="*70)
     
     # ========== 第2步: 验证 Template ==========
     if not args.skip_validation and not args.skip_template_validation:
@@ -245,18 +249,18 @@ def main():
         ]
         
         if not run_command(cmd, "步骤 2/5: 验证 Template", strict=args.strict):
-            print("\n" + "="*70)
-            print("❌ 流程中止: Template 验证失败")
-            print("   提示: 使用 --skip-template-validation 跳过此步骤")
-            print("="*70)
+            logger.error("="*70)
+            logger.error("流程中止: Template 验证失败")
+            logger.error("提示: 使用 --skip-template-validation 跳过此步骤")
+            logger.error("="*70)
             return 1
     else:
-        print("\n" + "="*70)
+        logger.info("="*70)
         if args.skip_validation:
-            print("⏭️  跳过步骤 2/5: Template 验证 (--skip-validation)")
+            logger.info("⏭️  跳过步骤 2/5: Template 验证 (--skip-validation)")
         else:
-            print("⏭️  跳过步骤 2/5: Template 验证 (--skip-template-validation)")
-        print("="*70)
+            logger.info("⏭️  跳过步骤 2/5: Template 验证 (--skip-template-validation)")
+        logger.info("="*70)
     
     # ========== 第3步: 计算 Report Data ==========
     cmd = [
@@ -271,11 +275,11 @@ def main():
         cmd.extend(['--functions-module', args.functions_module])
     
     if not run_command(cmd, "步骤 3/5: 计算 Report Data", strict=True):
-        print("\n" + "="*70)
-        print("❌ 流程中止: Report Data 计算失败")
-        print("="*70)
+        logger.error("="*70)
+        logger.error("流程中止: Report Data 计算失败")
+        logger.error("="*70)
         return 1
-    
+
     # ========== 第4步: 生成 Operations ==========
     cmd = [
         sys.executable, 'src/field_mapper.py',
@@ -283,13 +287,13 @@ def main():
         '--report', str(calculated_report_path),
         '--output', str(operations_path)
     ]
-    
+
     if not run_command(cmd, "步骤 4/5: 生成 Operations", strict=True):
-        print("\n" + "="*70)
-        print("❌ 流程中止: Operations 生成失败")
-        print("="*70)
+        logger.error("="*70)
+        logger.error("流程中止: Operations 生成失败")
+        logger.error("="*70)
         return 1
-    
+
     # ========== 第5步: 生成最终报告 ==========
     cmd = [
         sys.executable, 'src/process_template.py',
@@ -298,24 +302,24 @@ def main():
         '--calculated-report', str(calculated_report_path),
         '--output', str(output_path)
     ]
-    
+
     if not run_command(cmd, "步骤 5/5: 生成最终报告", strict=True):
-        print("\n" + "="*70)
-        print("❌ 流程中止: 报告生成失败")
-        print("="*70)
+        logger.error("="*70)
+        logger.error("流程中止: 报告生成失败")
+        logger.error("="*70)
         return 1
-    
+
     # 完成
-    print("\n" + "="*70)
-    print("✅ 报告生成流程完成!")
-    print("="*70)
-    print(f"\n📄 最终报告: {output_path}")
-    
+    logger.info("="*70)
+    logger.info("✅ 报告生成流程完成!")
+    logger.info("="*70)
+    logger.info(f"📄 最终报告: {output_path}")
+
     # 显示中间文件
-    print("\n📝 生成的中间文件:")
-    print(f"  • {calculated_report_path}")
-    print(f"  • {operations_path}")
-    
+    logger.info("📝 生成的中间文件:")
+    logger.info(f"  • {calculated_report_path}")
+    logger.info(f"  • {operations_path}")
+
     return 0
 
 

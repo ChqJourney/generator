@@ -16,6 +16,10 @@ import re
 from docx import Document
 from typing import List, Dict, Set, Tuple
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 class TemplateValidator:
     def __init__(self, template_path: str, config_path: str = None):
@@ -36,7 +40,7 @@ class TemplateValidator:
             from utils.jsonc_utils import load_json
             return load_json(self.config_path)
         except Exception as e:
-            print(f"[WARN] 无法加载配置文件: {e}")
+            logger.warning(f"无法加载配置文件: {e}")
             return None
     
     def _get_configured_placeholders(self) -> Set[str]:
@@ -105,12 +109,11 @@ class TemplateValidator:
     
     def validate(self) -> Dict:
         """执行完整的验证"""
-        print(f"[INFO] 开始验证模板: {self.template_path}")
+        logger.info(f"开始验证模板: {self.template_path}")
         if self.config:
-            print(f"[INFO] 配置文件: {self.config_path}")
+            logger.info(f"配置文件: {self.config_path}")
         else:
-            print("[INFO] 未提供配置文件，将只检查占位符是否被分割")
-        print()
+            logger.info("未提供配置文件，将只检查占位符是否被分割")
         
         # 1. 检查正文段落
         for i, para in enumerate(self.doc.paragraphs):
@@ -144,65 +147,53 @@ class TemplateValidator:
             'undefined_count': len(self.undefined_placeholders) if self.config else None,
         }
         
-        print("=" * 80)
-        print("验证报告")
-        print("=" * 80)
-        print()
-        print(f"发现的占位符总数: {report['total_placeholders']}")
-        print(f"  - 单个 run 中的占位符: {report['single_run_count']}")
-        print(f"  - 被分割到多个 runs 的占位符: {report['split_count']}")
-        
+        logger.info("=" * 80)
+        logger.info("验证报告")
+        logger.info("=" * 80)
+        logger.info(f"发现的占位符总数: {report['total_placeholders']}")
+        logger.info(f"  - 单个 run 中的占位符: {report['single_run_count']}")
+        logger.info(f"  - 被分割到多个 runs 的占位符: {report['split_count']}")
+
         if self.config:
-            print(f"  - 在配置中未定义的占位符: {report['undefined_count']}")
-        
-        print()
-        
+            logger.info(f"  - 在配置中未定义的占位符: {report['undefined_count']}")
+
         # 显示被分割的占位符详情
         if self.split_placeholders:
-            print("-" * 80)
-            print("被分割到多个 runs 的占位符（需要修复）：")
-            print("-" * 80)
+            logger.info("-" * 80)
+            logger.info("被分割到多个 runs 的占位符（需要修复）：")
+            logger.info("-" * 80)
             for item in self.split_placeholders:
-                print()
-                print(f"  占位符: {{{{{item['placeholder']}}}}}")
-                print(f"  位置: {item['location']}")
-                print(f"  文本: {item['text'][:80]}...")
-                print(f"  Runs 详情:")
+                logger.info(f"  占位符: {{{{{item['placeholder']}}}}}")
+                logger.info(f"  位置: {item['location']}")
+                logger.info(f"  文本: {item['text'][:80]}...")
+                logger.info(f"  Runs 详情:")
                 for i, run_text in enumerate(item['runs']):
-                    print(f"    Run {i}: '{run_text}'")
-            print()
-        
+                    logger.info(f"    Run {i}: '{run_text}'")
+
         # 显示未定义的占位符
         if self.undefined_placeholders:
-            print("-" * 80)
-            print("在配置中未定义的占位符：")
-            print("-" * 80)
+            logger.info("-" * 80)
+            logger.info("在配置中未定义的占位符：")
+            logger.info("-" * 80)
             for placeholder in self.undefined_placeholders:
-                print(f"  - {{{{{placeholder}}}}}")
-            print()
-        
+                logger.info(f"  - {{{{{placeholder}}}}}")
+
         # 显示建议
-        print("=" * 80)
-        print("建议")
-        print("=" * 80)
-        
+        logger.info("=" * 80)
+        logger.info("建议")
+        logger.info("=" * 80)
+
         if self.split_placeholders:
-            print()
-            print("1. 修复被分割的占位符：")
-            print("   这些占位符在 Word 中被分割成了多个 runs，导致 {{}} 无法被正确清除。")
-            print("   建议：在 Word 中重新输入这些占位符，确保它们在一个连续的文本块中。")
-            print()
-        
+            logger.info("1. 修复被分割的占位符：")
+            logger.info("   这些占位符在 Word 中被分割成了多个 runs，导致 {{}} 无法被正确清除。")
+            logger.info("   建议：在 Word 中重新输入这些占位符，确保它们在一个连续的文本块中。")
+
         if self.undefined_placeholders:
-            print()
-            print("2. 添加缺失的占位符配置：")
-            print(f"   在配置文件 '{self.config_path}' 中添加这些占位符的 field_mappings。")
-            print()
-        
+            logger.info("2. 添加缺失的占位符配置：")
+            logger.info(f"   在配置文件 '{self.config_path}' 中添加这些占位符的 field_mappings。")
+
         if not self.split_placeholders and not self.undefined_placeholders:
-            print()
-            print("模板验证通过！所有占位符都在单个 run 中，并且都已在配置中定义。")
-            print()
+            logger.info("模板验证通过！所有占位符都在单个 run 中，并且都已在配置中定义。")
         
         return report
 

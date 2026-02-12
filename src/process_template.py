@@ -11,6 +11,7 @@ from docx.shared import Inches
 sys.path.insert(0, str(Path(__file__).parent))
 
 from utils.logging_config import get_logger
+from utils.path_navigator import PathNavigator
 
 logger = get_logger(__name__)
 
@@ -81,41 +82,6 @@ def load_calculated_report(report_path: Path) -> dict:
     return data
 
 
-def get_nested_value(data: dict, path: str, default=None):
-    """
-    获取嵌套字典的值，支持点号路径如 'metadata.report_no'
-    也支持字段名中包含点号，如 'calculated_data.v.II.1.a.1'
-    """
-    # 策略：尝试最大匹配（支持字段名中包含点号）
-    parts = path.split('.')
-    
-    for split_idx in range(1, len(parts)):
-        first_key = '.'.join(parts[:split_idx])
-        rest_key = '.'.join(parts[split_idx:])
-        
-        if first_key in data:
-            current = data[first_key]
-            # 尝试将剩余部分作为完整键
-            if isinstance(current, dict) and rest_key in current:
-                return current[rest_key]
-            # 或者递归处理剩余部分
-            result = get_nested_value(current, rest_key, default)
-            if result is not default:
-                return result
-    
-    # 默认：按标准点号分割处理
-    value = data
-    for key in parts:
-        if isinstance(value, dict) and key in value:
-            value = value[key]
-        else:
-            return default
-    return value
-
-
-
-
-
 def resolve_text_value(value_ref: str, calculated_report: dict) -> str:
     """
     解析文本值引用
@@ -127,7 +93,7 @@ def resolve_text_value(value_ref: str, calculated_report: dict) -> str:
     - 路径引用: "calculated_data.energy_class"
     """
     # 尝试作为路径解析
-    value = get_nested_value(calculated_report, value_ref)
+    value = PathNavigator.get_value(calculated_report, value_ref)
     if value is not None:
         return str(value)
     
@@ -146,7 +112,7 @@ def resolve_table_data(data_ref: str, calculated_report: dict) -> list:
     if isinstance(data_ref, list):
         return data_ref
     
-    value = get_nested_value(calculated_report, data_ref)
+    value = PathNavigator.get_value(calculated_report, data_ref)
     if isinstance(value, list):
         return value
     

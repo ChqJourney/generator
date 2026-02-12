@@ -36,7 +36,7 @@ python src/report_data_validator.py \
 ```bash
 python src/report_data_validator.py \
     --report config/report_data_example.json \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --base-path .
 ```
 
@@ -45,7 +45,7 @@ python src/report_data_validator.py \
 ```bash
 python src/report_data_validator.py \
     --report config/report_data_example.json \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --strict
 ```
 
@@ -101,7 +101,7 @@ from pathlib import Path
 with open('config/report_data_example.json', 'r', encoding='utf-8') as f:
     report_data = json.load(f)
 
-with open('config/report_config.json', 'r', encoding='utf-8') as f:
+with open('config/report_config.jsonc', 'r', encoding='utf-8') as f:
     config_data = json.load(f)
 
 # 创建验证器
@@ -543,7 +543,7 @@ efficacy = flux / wattage
 │  Step 1: 验证输入数据                                            │
 │  python src/report_data_validator.py                            │
 │    --report config/report.json                                  │
-│    --config config/report_config.json                           │
+│    --config config/report_config.jsonc                           │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
                               ↓ 验证通过 ✅
@@ -551,7 +551,7 @@ efficacy = flux / wattage
 ┌─────────────────────────────────────────────────────────────────┐
 │  Step 2: 执行计算（如果配置了 function）                          │
 │  python src/calculator.py                                       │
-│    --config config/report_config.json                           │
+│    --config config/report_config.jsonc                           │
 │    --report config/report.json                                  │
 │    --output output/calculated_report.json                       │
 └─────────────────────────────────────────────────────────────────┘
@@ -559,7 +559,7 @@ efficacy = flux / wattage
 ┌─────────────────────────────────────────────────────────────────┐
 │  Step 3: 生成操作队列                                            │
 │  python src/field_mapper.py                                     │
-│    --config config/report_config.json                           │
+│    --config config/report_config.jsonc                           │
 │    --report output/calculated_report.json                       │
 │    --output output/operations.json                              │
 └─────────────────────────────────────────────────────────────────┘
@@ -644,7 +644,7 @@ def my_custom_calculation(value1, value2):
 
 ```bash
 python src/calculator.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report config/report.json \
     --output output/calculated_report.json \
     --functions-module custom_calculations
@@ -710,7 +710,7 @@ python src/template_validator.py \
 ```bash
 python src/template_validator.py \
     --template report_templates/production_template.docx \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 ```
 
 #### 参数说明
@@ -778,24 +778,24 @@ Runs 详情:
 # 步骤 1: 验证 report.json 数据格式和内容
 python src/report_data_validator.py \
     --report config/report.json \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 
 # 步骤 2: 验证 Word 模板（检查占位符是否会被正确处理）
 python src/template_validator.py \
     --template report_templates/production_template.docx \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 
 # 如果以上两个验证都通过，继续生成报告...
 
 # 步骤 3: 执行计算（如果需要）
 python src/calculator.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report config/report.json \
     --output output/calculated_report.json
 
 # 步骤 4: 生成操作
 python src/field_mapper.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report output/calculated_report.json \
     --output output/operations.json
 
@@ -843,7 +843,7 @@ python src/process_template.py \
 ```bash
 python src/report_data_validator.py \
     --report config/report.json \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 ```
 
 **预期输出**：
@@ -856,7 +856,7 @@ python src/report_data_validator.py \
 ```bash
 python src/template_validator.py \
     --template report_templates/production_template.docx \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 ```
 
 **预期输出**：
@@ -868,7 +868,7 @@ python src/template_validator.py \
 
 ```bash
 python src/calculator.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report config/report.json \
     --output output/calculated_report.json
 ```
@@ -877,7 +877,7 @@ python src/calculator.py \
 
 ```bash
 python src/field_mapper.py \
-    --config config/report_config.json \
+    --config config/report_config.jsonc \
     --report output/calculated_report.json \
     --output output/operations.json
 
@@ -940,11 +940,11 @@ python src/process_template.py \
 | 命令 | 用途 |
 |------|------|
 | `python src/report_data_validator.py --report config/report.json` | 验证数据格式 |
-| `python src/report_data_validator.py --report config/report.json --config config/report_config.json` | 验证数据和配置一致性 |
+| `python src/report_data_validator.py --report config/report.json --config config/report_config.jsonc` | 验证数据和配置一致性 |
 | `python src/template_validator.py --template report_templates/template.docx` | 验证模板占位符 |
-| `python src/template_validator.py --template report_templates/template.docx --config config/report_config.json` | 验证模板占位符和配置 |
-| `python src/calculator.py --config config/report_config.json --report config/report.json --output output/calculated_report.json` | 执行计算 |
-| `python src/field_mapper.py --config config/report_config.json --report output/calculated_report.json --output output/operations.json` | 生成操作队列 |
+| `python src/template_validator.py --template report_templates/template.docx --config config/report_config.jsonc` | 验证模板占位符和配置 |
+| `python src/calculator.py --config config/report_config.jsonc --report config/report.json --output output/calculated_report.json` | 执行计算 |
+| `python src/field_mapper.py --config config/report_config.jsonc --report output/calculated_report.json --output output/operations.json` | 生成操作队列 |
 | `python src/process_template.py --template report_templates/template.docx --operations output/operations.json --output output/final_report.docx` | 生成报告 |
 
 ### 退出码说明
@@ -988,7 +988,7 @@ python src/process_template.py \
 
 如有问题，请参考项目 README 或联系开发团队。
     --report config/report.json \
-    --config config/report_config.json
+    --config config/report_config.jsonc
 ```
 
 常见问题检查清单：

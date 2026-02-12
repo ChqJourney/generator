@@ -16,11 +16,8 @@ sys.path.insert(0, 'src')
 from field_mapper import (
     load_json,
     get_value_by_path,
-    is_external_table_reference,
     is_direct_table_data,
     generate_operations,
-    build_table_data_from_excel,
-    get_xlsx_to_list,
     main,
 )
 

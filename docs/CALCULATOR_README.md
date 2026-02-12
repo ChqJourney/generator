@@ -19,20 +19,26 @@
 
 ```bash
 python src/calculator.py \
-    --config config/report_config.json \
-    --metadata data_files/metadata.json \
-    --extracted-data data_files/extracted_data.json \
-    --output output/calculated_data.json
+    --config config/report_config.jsonc \
+    --report config/report_data.json \
+    --output output/calculated_report.json
 ```
 
-### 2. 集成到 field_mapper
+### 2. 生成操作队列
+
+先运行 calculator 生成计算结果，然后运行 field_mapper：
 
 ```bash
+# Step 1: 执行计算
+python src/calculator.py \
+    --config config/report_config.jsonc \
+    --report config/report_data.json \
+    --output output/calculated_report.json
+
+# Step 2: 生成操作队列
 python src/field_mapper.py \
-    --config config/report_config.json \
-    --metadata data_files/metadata.json \
-    --extracted-data data_files/extracted_data.json \
-    --calculated-data output/calculated_data.json \
+    --config config/report_config.jsonc \
+    --report output/calculated_report.json \
     --output output/operations.json
 ```
 
@@ -63,22 +69,20 @@ field_value = calculator.calculate_field(mapping_config)
   "field_mappings": [
     {
       "template_field": "energy_class_rating",
-      "source": "calculated_data",
-      "source_field": "energy_class_rating",
+      "source_field": "calculated_data.energy_class_rating",
       "args": [
-        "extracted_data|rated_wattage",
-        "extracted_data|useful_luminous_flux"
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
       ],
       "function": "calculate_energy_class_rating",
       "type": "text"
     },
     {
       "template_field": "energy_efficacy",
-      "source": "calculated_data",
-      "source_field": "energy_efficacy",
+      "source_field": "calculated_data.energy_efficacy",
       "args": [
-        "extracted_data|rated_wattage",
-        "extracted_data|useful_luminous_flux"
+        "extracted_data.rated_wattage",
+        "extracted_data.useful_luminous_flux"
       ],
       "function": "calculate_energy_efficacy",
       "type": "text"
@@ -89,9 +93,9 @@ field_value = calculator.calculate_field(mapping_config)
 
 ### 字段路径格式
 
-- `extracted_data|field_name` - 从 extracted_data 获取字段
-- `metadata|field_name` - 从 metadata 获取字段
-- `field_name` - 默认从 extracted_data 获取
+- `extracted_data.field_name` - 从 extracted_data 获取字段
+- `metadata.field_name` - 从 metadata 获取字段
+- `calculated_data.field_name` - 从 calculated_data 获取字段
 
 ## 内置计算函数
 
@@ -311,11 +315,10 @@ python src/calculator.py \
 ```json
 {
   "template_field": "luminous_efficacy",
-  "source": "calculated_data",
-  "source_field": "luminous_efficacy",
+  "source_field": "calculated_data.luminous_efficacy",
   "args": [
-    "extracted_data|total_luminous_flux",
-    "extracted_data|rated_wattage"
+    "extracted_data.total_luminous_flux",
+    "extracted_data.rated_wattage"
   ],
   "function": "divide",
   "type": "text"
@@ -327,11 +330,10 @@ python src/calculator.py \
 ```json
 {
   "template_field": "power_with_unit",
-  "source": "calculated_data",
-  "source_field": "power_with_unit",
+  "source_field": "calculated_data.power_with_unit",
   "args": [
-    "extracted_data|rated_wattage",
-    "W"
+    "extracted_data.rated_wattage",
+    "metadata.unit"
   ],
   "function": "concat",
   "type": "text"
@@ -343,12 +345,11 @@ python src/calculator.py \
 ```json
 {
   "template_field": "test_result",
-  "source": "calculated_data",
-  "source_field": "test_result",
+  "source_field": "calculated_data.test_result",
   "args": [
-    "extracted_data|measured_power",
-    "extracted_data|min_power_limit",
-    "extracted_data|max_power_limit"
+    "extracted_data.measured_power",
+    "extracted_data.min_power_limit",
+    "extracted_data.max_power_limit"
   ],
   "function": "check_pass_fail",
   "type": "text"

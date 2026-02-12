@@ -17,24 +17,74 @@ import json
 import argparse
 import sys
 import os
-from typing import List, Dict
+import re
+from typing import List, Dict, Any
+
+sys.path.insert(0, str(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src.utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 except ImportError:
-    print("请先安装openpyxl: pip install openpyxl")
+    logger.error("请先安装openpyxl: pip install openpyxl")
     sys.exit(1)
+
+
+def load_jsonc(file_path: str) -> Any:
+    """
+    读取 JSONC 文件（支持注释的 JSON）
+    去除单行注释 // 和多行注释 /* */
+    """
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 去除多行注释 /* */
+    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+
+    # 去除单行注释 //（但要保留 URL 中的 //）
+    lines = []
+    for line in content.split('\n'):
+        # 找到 // 的位置，但不在字符串中的
+        in_string = False
+        string_char = None
+        comment_start = -1
+
+        for i, char in enumerate(line):
+            if char in ('"', "'"):
+                if not in_string:
+                    in_string = True
+                    string_char = char
+                elif char == string_char:
+                    # 检查是否是转义字符
+                    if i > 0 and line[i-1] != '\\':
+                        in_string = False
+                        string_char = None
+            elif char == '/' and i + 1 < len(line) and line[i + 1] == '/':
+                if not in_string:
+                    comment_start = i
+                    break
+
+        if comment_start >= 0:
+            line = line[:comment_start]
+
+        lines.append(line)
+
+    content = '\n'.join(lines)
+
+    return json.loads(content)
 
 
 def export_to_excel(input_json: str, output_excel: str):
     """
     将提取的元素导出为Excel表格
+    支持 JSONC 格式（带注释的 JSON）
     """
-    # 读取JSON
-    with open(input_json, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    # 读取JSON（支持注释）
+    data = load_jsonc(input_json)
     
     # 创建工作簿
     wb = Workbook()
@@ -125,7 +175,7 @@ def export_to_excel(input_json: str, output_excel: str):
             source_prefix,
             field_name,  # 只显示字段名，不含前缀
             mapping.get("function", ""),
-            ", ".join(mapping.get("args", [])),
+            ", ".join(str(arg) for arg in mapping.get("args", [])),
             mapping.get("location", "body"),
             "; ".join(extra_config)
         ]
@@ -178,8 +228,8 @@ def export_to_excel(input_json: str, output_excel: str):
     
     # 保存
     wb.save(output_excel)
-    print(f"已导出到Excel: {output_excel}")
-    print(f"共 {len(mappings)} 个字段")
+    logger.info(f"已导出到Excel: {output_excel}")
+    logger.info(f"共 {len(mappings)} 个字段")
 
 
 def import_from_excel(input_excel: str, output_json: str):
@@ -265,15 +315,15 @@ def import_from_excel(input_excel: str, output_json: str):
     with open(output_json, 'w', encoding='utf-8') as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
     
-    print(f"已生成配置: {output_json}")
-    print(f"共 {len(mappings)} 个字段")
-    
+    logger.info(f"已生成配置: {output_json}")
+    logger.info(f"共 {len(mappings)} 个字段")
+
     # 列出计算字段
     calculated = [m for m in mappings if m.get("function")]
     if calculated:
-        print(f"\n包含 {len(calculated)} 个计算字段:")
+        logger.info(f"包含 {len(calculated)} 个计算字段:")
         for m in calculated:
-            print(f"  - {m['template_field']}: {m['function']}")
+            logger.info(f"  - {m['template_field']}: {m['function']}")
 
 
 def main():

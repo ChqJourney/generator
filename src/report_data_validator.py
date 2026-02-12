@@ -11,6 +11,10 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
 
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 # 修复 Windows 控制台编码问题
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -70,51 +74,51 @@ class ValidationReport:
     
     def print_report(self):
         """打印详细验证报告"""
-        print("\n" + "=" * 70)
-        print("📋 Report Data 完整验证报告")
-        print("=" * 70)
-        
+        logger.info("=" * 70)
+        logger.info("📋 Report Data 完整验证报告")
+        logger.info("=" * 70)
+
         # 摘要信息
         if self.summary:
-            print("\n📊 数据摘要:")
+            logger.info("📊 数据摘要:")
             for key, value in self.summary.items():
-                print(f"  • {key}: {value}")
-        
+                logger.info(f"  • {key}: {value}")
+
         # 错误
         if self.errors:
-            print(f"\n❌ [错误] 发现 {len(self.errors)} 个错误（必须修复）:")
+            logger.error(f"❌ [错误] 发现 {len(self.errors)} 个错误（必须修复）:")
             for i, err in enumerate(self.errors, 1):
-                print(f"\n  {i}. [{err.path}] {err.message}")
+                logger.error(f"  {i}. [{err.path}] {err.message}")
                 if err.expected_type and err.actual_type:
-                    print(f"     类型不匹配: 期望 {err.expected_type}, 实际是 {err.actual_type}")
+                    logger.error(f"     类型不匹配: 期望 {err.expected_type}, 实际是 {err.actual_type}")
                 if err.current_value is not None:
-                    print(f"     当前值: {err.current_value}")
+                    logger.error(f"     当前值: {err.current_value}")
                 if err.suggestion:
-                    print(f"     💡 建议: {err.suggestion}")
-        
+                    logger.error(f"     💡 建议: {err.suggestion}")
+
         # 警告
         if self.warnings:
-            print(f"\n⚠️  [警告] 发现 {len(self.warnings)} 个警告（建议修复）:")
+            logger.warning(f"⚠️  [警告] 发现 {len(self.warnings)} 个警告（建议修复）:")
             for i, warn in enumerate(self.warnings, 1):
-                print(f"\n  {i}. [{warn.path}] {warn.message}")
+                logger.warning(f"  {i}. [{warn.path}] {warn.message}")
                 if warn.suggestion:
-                    print(f"     💡 建议: {warn.suggestion}")
-        
+                    logger.warning(f"     💡 建议: {warn.suggestion}")
+
         # 信息
         if self.infos:
-            print(f"\nℹ️  [信息] {len(self.infos)} 条提示:")
+            logger.info(f"ℹ️  [信息] {len(self.infos)} 条提示:")
             for i, info in enumerate(self.infos, 1):
-                print(f"  {i}. [{info.path}] {info.message}")
-        
+                logger.info(f"  {i}. [{info.path}] {info.message}")
+
         # 总结
-        print("\n" + "=" * 70)
+        logger.info("=" * 70)
         if self.is_valid and not self.warnings:
-            print("✅ [通过] 所有检查通过！数据格式完全符合要求。")
+            logger.info("✅ [通过] 所有检查通过！数据格式完全符合要求。")
         elif self.is_valid:
-            print("⚠️  [通过但有警告] 格式基本正确，但建议修复上述警告。")
+            logger.warning("⚠️  [通过但有警告] 格式基本正确，但建议修复上述警告。")
         else:
-            print("❌ [失败] 数据有错误，请先修复后再处理。")
-        print("=" * 70 + "\n")
+            logger.error("❌ [失败] 数据有错误，请先修复后再处理。")
+        logger.info("=" * 70)
 
 
 class ReportDataValidator:
@@ -673,43 +677,43 @@ def main():
         try:
             report_data = load_json(args.report)
         except FileNotFoundError:
-            print(f"❌ 错误: 文件不存在 - {args.report}")
+            logger.error(f"文件不存在 - {args.report}")
             return 1
         except json.JSONDecodeError as e:
-            print(f"❌ 错误: JSON 格式错误 - {e}")
+            logger.error(f"JSON 格式错误 - {e}")
             return 1
-        
+
         # 加载 config（可选）
         config_data = None
         if args.config:
             try:
                 config_data = load_json(args.config)
             except FileNotFoundError:
-                print(f"⚠️ 警告: 配置文件不存在 - {args.config}")
+                logger.warning(f"配置文件不存在 - {args.config}")
             except json.JSONDecodeError as e:
-                print(f"⚠️ 警告: 配置文件 JSON 格式错误 - {e}")
-        
+                logger.warning(f"配置文件 JSON 格式错误 - {e}")
+
         # 确定基础路径
         base_path = Path(args.base_path) if args.base_path else Path(args.report).parent
-        
+
         # 执行验证
         validator = ReportDataValidator(report_data, config_data, base_path)
         report = validator.validate()
-        
+
         # 打印报告
         report.print_report()
-        
+
         # 返回退出码
         if not report.is_valid:
             return 1
         if args.strict and report.warnings:
             return 2
         return 0
-        
+
     except Exception as e:
-        print(f"❌ 错误: {e}")
+        logger.error(f"{e}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return 1
 
 

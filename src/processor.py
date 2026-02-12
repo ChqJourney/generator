@@ -215,7 +215,7 @@ class TextInserter(ContentInserter):
                 replaced = True
         
         if not replaced:
-            print(f"警告: 占位符 '{placeholder}' 未能成功替换，跳过此操作")
+            logger.warning(f"占位符 '{placeholder}' 未能成功替换，跳过此操作")
 
 class TableInserter(ContentInserter):
     def insert(self, placeholder: str, table_template_path: str, 
@@ -253,15 +253,15 @@ class TableInserter(ContentInserter):
         results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, location)
         
         if not results:
-            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在 body 中查找...")
+            logger.warning(f"在 {location} 中未找到占位符 '{placeholder}'，尝试在 body 中查找...")
             if location != 'body':
                 results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, 'body')
                 if results:
-                    print(f"在 body 中找到占位符 '{placeholder}'")
+                    logger.info(f"在 body 中找到占位符 '{placeholder}'")
                     location = 'body'
-        
+
         if not results:
-            print(f"警告: 占位符 '{placeholder}' 未找到，跳过表格插入操作")
+            logger.warning(f"占位符 '{placeholder}' 未找到，跳过表格插入操作")
             return
         
         for idx, paragraph in results:
@@ -269,11 +269,11 @@ class TableInserter(ContentInserter):
                 PlaceholderFinder.replace_paragraph_with_element(paragraph, template_table._element)
             except (AttributeError, ValueError, TypeError, DocxTemplateError) as e:
                 try:
-                    print(f"尝试在单元格内插入表格 '{placeholder}'...")
+                    logger.info(f"尝试在单元格内插入表格 '{placeholder}'...")
                     self._insert_table_in_cell(paragraph, template_table)
                 except Exception as e2:
-                    print(f"警告: 无法替换占位符 '{placeholder}' 为表格: {str(e)}")
-                    print(f"      尝试在单元格内插入也失败: {str(e2)}")
+                    logger.warning(f"无法替换占位符 '{placeholder}' 为表格: {str(e)}")
+                    logger.warning(f"尝试在单元格内插入也失败: {str(e2)}")
                     continue
     
     def _fill_fixed_rows(self, table: Any, data: List[List[Any]], skip_columns: Optional[List[int]], header_rows: int, text_insert: Optional[List[Dict]] = None, calculated_report: Optional[Dict] = None):
@@ -415,7 +415,7 @@ class TableInserter(ContentInserter):
         p_index = list(cell_element).index(p_element)
         cell_element.remove(p_element)
         cell_element.insert(p_index, new_table_element)
-        print(f"成功在单元格内插入表格")
+        logger.info(f"成功在单元格内插入表格")
     
     def _find_parent_cell(self, paragraph):
         try:
@@ -488,17 +488,17 @@ class ImageInserter(ContentInserter):
         
         # 如果在指定位置找不到，尝试在所有位置查找
         if not results:
-            print(f"警告: 在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
+            logger.warning(f"在 {location} 中未找到占位符 '{placeholder}'，尝试在所有位置查找...")
             for loc in ['header', 'body', 'footer']:
                 if loc != location:
                     results = PlaceholderFinder.find_all_placeholders_in_location(self.doc, placeholder, loc)
                     if results:
-                        print(f"在 {loc} 中找到占位符 '{placeholder}'")
+                        logger.info(f"在 {loc} 中找到占位符 '{placeholder}'")
                         location = loc
                         break
-        
+
         if not results:
-            print(f"警告: 占位符 '{placeholder}' 在所有位置都未找到，跳过图片插入操作")
+            logger.warning(f"占位符 '{placeholder}' 在所有位置都未找到，跳过图片插入操作")
             return
         
         for idx, paragraph in results:
@@ -798,13 +798,13 @@ class DocxTemplateProcessor:
                     inserter.insert(op['checkbox_mapping'])
             
             self.doc.save(self.output_path)
-            print(f"文档已保存至: {self.output_path}")
+            logger.info(f"文档已保存至: {self.output_path}")
             return self.output_path
-        
+
         except DocxTemplateError as e:
-            print(f"错误: {str(e)}")
+            logger.error(f"{str(e)}")
             raise
         except Exception as e:
-            print(f"处理文档时发生未知错误: {str(e)}")
+            logger.error(f"处理文档时发生未知错误: {str(e)}")
             raise DocxTemplateError(f"Unknown error while processing document: {str(e)}")
 

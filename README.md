@@ -40,7 +40,7 @@ This project automates the generation of Word reports by inserting extracted dat
 
 ### 1. Configuration Files
 
-#### `config/report.json`
+#### `config/report_data.json`
 Hierarchical data structure containing all report data.
 
 ```json
@@ -68,8 +68,8 @@ Hierarchical data structure containing all report data.
 
 **Field Access**: Use dot-notation paths like `metadata.report_no`, `extracted_data.rated_wattage`.
 
-#### `config/report_config.json`
-Master configuration defining how data maps to template placeholders.
+#### `config/report_config.jsonc`
+Master configuration defining how data maps to template placeholders (JSON with comments support).
 
 ```json
 {
@@ -139,8 +139,8 @@ Converts field mappings to operation array for processor.
 **Usage:**
 ```bash
 python src/field_mapper.py \
-  --config config/report_config.json \
-  --report config/report.json \
+  --config config/report_config.jsonc \
+  --report config/report_data.json \
   --output operations.json
 ```
 
@@ -230,8 +230,8 @@ Excel source file containing photometric measurement data.
 
 ```bash
 # Step 1: Validate data and template
-python src/report_data_validator.py --report config/report_data.json --config config/report_config.json
-python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+python src/report_data_validator.py --report config/report_data.json --config config/report_config.jsonc
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.jsonc
 
 # Step 2: Process template (checkbox handling is automatic)
 python src/process_template.py \
@@ -380,10 +380,10 @@ The system provides two validation tools to check data and templates before repo
 
 ```bash
 # Validate report_data.json data format and content
-python src/report_data_validator.py --report config/report_data.json --config config/report_config.json
+python src/report_data_validator.py --report config/report_data.json --config config/report_config.jsonc
 
 # Validate Word template (check placeholder splitting issues)
-python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.jsonc
 ```
 
 For detailed validation documentation and troubleshooting, see [AGENTS.md](AGENTS.md).
@@ -417,7 +417,7 @@ pytest tests/test_calculator.py
 .
 ├── config/
 │   ├── report_data.json            # Report data (metadata, extracted_data, calculated_data)
-│   └── report_config.json     # Field mapping configuration
+│   └── report_config.jsonc         # Field mapping configuration (JSON with comments)
 ├── data_files/
 │   └── TDS.xlsx              # Excel data source
 ├── report_templates/

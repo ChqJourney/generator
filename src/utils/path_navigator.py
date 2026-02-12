@@ -8,22 +8,23 @@ class PathNavigator:
     """路径导航器 - 支持点号路径访问分层数据"""
     
     @staticmethod
-    def get_value(data: Dict, path: str) -> Any:
+    def get_value(data: Dict, path: str, default: Any = None) -> Any:
         """
         通过点号路径获取值
-        
+
         Args:
             data: 分层数据字典
             path: 点号分隔的路径，如 'extracted_data.rated_wattage'
-            支持字段名中包含点号，如 'calculated_data.v.1.a' 会先尝试查找 
-            data['calculated_data']['v.1.a']，如果不存在则尝试 
+            支持字段名中包含点号，如 'calculated_data.v.1.a' 会先尝试查找
+            data['calculated_data']['v.1.a']，如果不存在则尝试
             data['calculated_data']['v']['1']['a']
-            
+            default: 路径不存在时返回的默认值，默认为None
+
         Returns:
-            路径对应的值，如果路径不存在返回None
+            路径对应的值，如果路径不存在返回default
         """
         if not path:
-            return None
+            return default
         
         # 策略：尝试最大匹配（支持字段名中包含点号）
         # 例如 'calculated_data.v.1.a' 会先尝试 'calculated_data' + 'v.1.a'
@@ -39,18 +40,18 @@ class PathNavigator:
                 if isinstance(current, dict) and rest_key in current:
                     return current[rest_key]
                 # 或者递归处理剩余部分
-                result = PathNavigator.get_value(current, rest_key)
-                if result is not None:
+                result = PathNavigator.get_value(current, rest_key, default)
+                if result is not default:
                     return result
-        
+
         # 默认：按标准点号分割处理
         current = data
         for part in parts:
             if isinstance(current, dict) and part in current:
                 current = current[part]
             else:
-                return None
-        
+                return default
+
         return current
     
     @staticmethod

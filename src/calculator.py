@@ -9,8 +9,12 @@ from dataclasses import dataclass
 import importlib
 
 # 导入公共工具
-from utils.path_navigator import DataNavigator
-from utils.logging_config import get_logger
+try:
+    from utils.path_navigator import DataNavigator
+    from utils.logging_config import get_logger
+except ImportError:
+    from src.utils.path_navigator import DataNavigator
+    from src.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
@@ -212,7 +216,13 @@ class FieldCalculator:
                 raise FunctionNotFoundError(function_name)
             
             try:
-                result = func(*args)
+                # 检查是否有 clause_config 配置
+                clause_config = mapping.get('clause_config')
+                if clause_config:
+                    # 将 clause_config 传递给函数
+                    result = func(*args, clause_config=clause_config)
+                else:
+                    result = func(*args)
             except Exception as e:
                 raise CalculatorError(
                     f"Error executing function '{function_name}' with args {args}: {e}"

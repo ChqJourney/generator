@@ -150,7 +150,7 @@ src/table_processor/
 }
 ```
 
-#### 完整的 report_config.json 示例
+#### 完整的 report_config.jsonc 示例
 
 ```json
 {
@@ -332,11 +332,13 @@ generator/
 └── test_table_processor.py
 ```
 
-## 后续集成建议
+## 后续集成建议（已实现）
+
+> **注意**：以下集成建议已实现，表格处理器模块已集成到主系统。本节内容仅供历史参考。
 
 测试完成并确认功能正常后，可以集成到现有系统：
 
-### 1. 修改 `field_mapper.py`
+### 1. 修改 `field_mapper.py`（已实现）
 
 在 `generate_operations()` 的table类型处理中增加：
 ```python
@@ -346,7 +348,7 @@ table_config['skip_columns'] = mapping.get('skip_columns')
 table_config['header_rows'] = mapping.get('header_rows', 1)
 ```
 
-### 2. 修改 `processor.py`
+### 2. 修改 `processor.py`（已实现）
 
 在 `DocxTemplateProcessor.process()` 中：
 ```python
@@ -367,7 +369,7 @@ elif op['type'] == 'table':
     )
 ```
 
-### 3. 更新 `report_config.json`
+### 3. 更新 `report_config.jsonc`
 
 ```json
 {

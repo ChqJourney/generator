@@ -9,3 +9,5 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning"
 ]
+[tool.basedpyright]
+typeCheckingMode = "off"

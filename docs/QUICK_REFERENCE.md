@@ -3,13 +3,13 @@
 ## 🚀 验证数据（一行命令）
 
 ```bash
-python src/report_data_validator.py --report config/report.json --config config/report_config.json
+python src/report_data_validator.py --report config/report_data.json --config config/report_config.jsonc
 ```
 
 ## 🎯 验证模板（一行命令）
 
 ```bash
-python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.json
+python src/template_validator.py --template report_templates/production_template.docx --config config/report_config.jsonc
 ```
 
 ### 为什么需要两个验证器？
@@ -24,7 +24,7 @@ python src/template_validator.py --template report_templates/production_template
 ## 🧮 计算字段（一行命令）
 
 ```bash
-python src/calculator.py --config config/report_config.json --report config/report.json --output output/calculated_report.json
+python src/calculator.py --config config/report_config.jsonc --report config/report_data.json --output output/calculated_report.json
 ```
 
 ## ⚙️ 配置 calculated_data 计算
@@ -117,7 +117,7 @@ python src/calculator.py --config config/report_config.json --report config/repo
 | 错误信息 | 原因 | 解决方案 |
 |----------|------|----------|
 | `占位符被分割到多个 runs` | Word 将占位符分割成多个 runs | 在 Word 中删除并重新手动输入占位符 |
-| `在配置中未定义的占位符` | 占位符在 config 中没有定义 | 在 report_config.json 中添加该占位符的映射 |
+| `在配置中未定义的占位符` | 占位符在 config 中没有定义 | 在 report_config.jsonc 中添加该占位符的映射 |
 
 ## 📁 文件模板
 
@@ -139,7 +139,7 @@ python src/calculator.py --config config/report_config.json --report config/repo
 }
 ```
 
-### 最小配置文件 (report_config.json)
+### 最小配置文件 (report_config.jsonc)
 
 ```json
 {
@@ -191,7 +191,7 @@ import json
 
 with open('config/report.json') as f:
     data = json.load(f)
-with open('config/report_config.json') as f:
+with open('config/report_config.jsonc') as f:
     config = json.load(f)
 
 calculator = FieldCalculator(data)
