@@ -75,7 +75,7 @@ class PlaceholderFinder:
                 index = list(p_parent).index(p_element)
             except ValueError:
                 # 如果在父容器中找不到，可能是因为paragraph在特殊容器中
-                raise DocxTemplateError(f"Paragraph not found in parent container")
+                raise DocxTemplateError("Paragraph not found in parent container")
             
             # 移除原段落
             p_parent.remove(p_element)
@@ -348,8 +348,8 @@ class TableInserter(ContentInserter):
         
         keys = path.split('.')
         current = data
-        if len(keys) == 1:
-            return str(path)
+        if len(keys) == 1 and str(path) in current:
+            return data[path]
         for key in keys:
             if isinstance(current, dict) and key in current:
                 current = current[key]
